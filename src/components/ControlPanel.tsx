@@ -6,6 +6,7 @@ export interface FluidParams {
   // Particle settings
   particleCount: number
   particleSize: number
+  particleSides: number // 0=circle, 3=triangle, 4=square, 5=pentagon...
   radius: number
 
   // Animation
@@ -24,6 +25,7 @@ export interface FluidParams {
 export const defaultFluidParams: FluidParams = {
   particleCount: 12000,
   particleSize: 8.0,
+  particleSides: 0, // 0=circle, 3=triangle, 4=square...
   radius: 2.5,
   animSpeed: 0.8,
   breathSpeed: 1.2,
@@ -171,6 +173,22 @@ export function ControlPanel({ params, onChange }: ControlPanelProps) {
               style={sliderStyle}
             />
             <span style={valueStyle}>{params.particleSize.toFixed(1)}</span>
+          </div>
+
+          <div style={rowStyle}>
+            <span style={labelStyle}>粒子形状</span>
+            <input
+              type="range"
+              min="0"
+              max="8"
+              step="1"
+              value={params.particleSides}
+              onChange={(e) => handleChange('particleSides', Number(e.target.value))}
+              style={sliderStyle}
+            />
+            <span style={valueStyle}>
+              {params.particleSides === 0 ? '圆' : params.particleSides === 3 ? '△' : params.particleSides === 4 ? '□' : params.particleSides === 5 ? '⬠' : params.particleSides === 6 ? '⬡' : `${params.particleSides}边`}
+            </span>
           </div>
         </div>
 

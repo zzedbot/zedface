@@ -61,6 +61,7 @@ export class FluidParticles {
       uGlowIntensity: { value: this.params.glowIntensity },
       uAlphaBase: { value: this.params.alphaBase },
       uParticleSize: { value: this.params.particleSize },
+      uParticleSides: { value: this.params.particleSides },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -101,6 +102,7 @@ export class FluidParticles {
     this.uniforms.uGlowIntensity.value = params.glowIntensity
     this.uniforms.uAlphaBase.value = params.alphaBase
     this.uniforms.uParticleSize.value = params.particleSize
+    this.uniforms.uParticleSides.value = params.particleSides
 
     // Rebuild particles if count or radius changed
     if (needsRebuild) {

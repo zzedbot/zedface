@@ -11,6 +11,7 @@ export const vertexShader = `
   uniform float uNoiseAmplitude;
   uniform float uColorMixSpeed;
   uniform float uAlphaBase;
+  uniform float uParticleSides;
 
   attribute float aScale;
   attribute float aRandomness;
@@ -53,20 +54,36 @@ export const vertexShader = `
 
 export const fragmentShader = `
   uniform float uGlowIntensity;
+  uniform float uParticleSides;
 
   varying vec3 vColor;
   varying float vAlpha;
 
+  float polygonShape(vec2 p, float sides) {
+    if (sides < 3.0) {
+      // Circle
+      return 1.0 - smoothstep(0.4, 0.5, length(p));
+    }
+
+    float angle = atan(p.y, p.x);
+    float segment = 6.28318 / sides;
+    float r = length(p);
+    float theta = mod(angle + segment * 0.5, segment) - segment * 0.5;
+    float d = r * cos(theta) / cos(segment * 0.5);
+
+    return 1.0 - smoothstep(0.45, 0.5, d);
+  }
+
   void main() {
-    // Circular particle
     vec2 center = gl_PointCoord - vec2(0.5);
-    float dist = length(center);
-    float alpha = smoothstep(0.5, 0.2, dist) * vAlpha;
+
+    // Shape based on sides (0 = circle, 3+ = polygon)
+    float shape = polygonShape(center, uParticleSides);
 
     // Glow effect
-    float glow = exp(-dist * 3.0) * uGlowIntensity;
+    float glow = exp(-length(center) * 3.0) * uGlowIntensity;
 
-    gl_FragColor = vec4(vColor + glow, alpha);
+    gl_FragColor = vec4(vColor + glow, shape * vAlpha);
   }
 `
 
