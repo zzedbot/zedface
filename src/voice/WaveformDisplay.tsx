@@ -94,6 +94,8 @@ export function WaveformDisplay({
     }
   }, [isActive, audioStream, color])
 
+  if (!isActive) return null
+
   return (
     <canvas
       ref={canvasRef}
@@ -104,8 +106,6 @@ export function WaveformDisplay({
         bottom: '180px',
         left: '50%',
         transform: 'translateX(-50%)',
-        opacity: isActive ? 1 : 0,
-        transition: 'opacity 0.3s ease',
         zIndex: 4,
       }}
     />

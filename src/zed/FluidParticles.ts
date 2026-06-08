@@ -71,7 +71,7 @@ export class FluidParticles {
     this.uniforms.uAudioIntensity.value = audioIntensity
 
     if (this.particles) {
-      this.particles.rotation.y = time * 0.05
+      this.particles.rotation.y = time * 0.15
     }
   }
 

@@ -14,15 +14,15 @@ export const vertexShader = `
   void main() {
     vec3 pos = position;
 
-    // Fluid motion
-    float noise = sin(pos.x * 2.0 + uTime * 0.5) *
-                  cos(pos.y * 2.0 + uTime * 0.3) *
-                  sin(pos.z * 2.0 + uTime * 0.7);
+    // Fluid motion - enhanced amplitude
+    float noise = sin(pos.x * 2.0 + uTime * 0.8) *
+                  cos(pos.y * 2.0 + uTime * 0.5) *
+                  sin(pos.z * 2.0 + uTime * 1.0);
 
-    pos += normal * noise * 0.3 * (1.0 + uAudioIntensity * 2.0);
+    pos += normal * noise * 0.5 * (1.0 + uAudioIntensity * 2.0);
 
-    // Breathing effect
-    float breath = sin(uTime * 0.8) * 0.1 + 1.0;
+    // Breathing effect - more pronounced
+    float breath = sin(uTime * 1.2) * 0.15 + 1.0;
     pos *= breath;
 
     // Audio reactivity
