@@ -99,13 +99,16 @@ export function WaveformDisplay({
   return (
     <canvas
       ref={canvasRef}
-      width={300}
-      height={60}
+      width={600}
+      height={80}
       style={{
         position: 'absolute',
         top: '45%',
         left: '50%',
         transform: 'translateX(-50%)',
+        width: '80%',
+        maxWidth: '600px',
+        height: '80px',
         zIndex: 4,
       }}
     />

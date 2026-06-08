@@ -7,7 +7,7 @@ export class FluidParticles {
   private scene: THREE.Scene
   private particles: THREE.Points | null = null
   private uniforms: { [key: string]: THREE.IUniform } = {}
-  private particleCount = 8000
+  private particleCount = 15000
 
   constructor(scene: THREE.Scene) {
     this.scene = scene
@@ -24,8 +24,8 @@ export class FluidParticles {
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3
 
-      // Sphere distribution
-      const radius = 2
+      // Sphere distribution - larger radius for full-screen
+      const radius = 5
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(Math.random() * 2 - 1)
 

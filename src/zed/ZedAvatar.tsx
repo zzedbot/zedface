@@ -35,7 +35,7 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
 
     // Camera
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 100)
-    camera.position.z = 5
+    camera.position.z = 8
     cameraRef.current = camera
 
     // Renderer
@@ -95,13 +95,11 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
       ref={containerRef}
       style={{
         position: 'absolute',
-        top: '10%',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        top: 0,
+        left: 0,
         width: '100%',
-        maxWidth: '400px',
-        height: '300px',
-        zIndex: 1,
+        height: '100%',
+        zIndex: 0,
       }}
     />
   )
