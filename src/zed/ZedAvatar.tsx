@@ -95,14 +95,15 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
       ref={containerRef}
       style={{
         position: 'absolute',
-        top: '50%',
+        top: '10%',
         left: '50%',
-        transform: 'translate(-50%, -60%)',
+        transform: 'translateX(-50%)',
         width: '100%',
-        maxWidth: '500px',
-        height: '400px',
+        maxWidth: '400px',
+        height: '300px',
         zIndex: 1,
       }}
     />
+  )
   )
 }

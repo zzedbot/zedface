@@ -103,7 +103,7 @@ export function WaveformDisplay({
       height={60}
       style={{
         position: 'absolute',
-        bottom: '180px',
+        top: '45%',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 4,
