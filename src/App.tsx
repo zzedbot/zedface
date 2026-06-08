@@ -1,6 +1,6 @@
 // src/App.tsx
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Header } from './components/Header'
 import { SubtitleDisplay } from './components/SubtitleDisplay'
 import { ControlBar } from './components/ControlBar'
@@ -9,6 +9,7 @@ import { HistoryPanel } from './components/HistoryPanel'
 import { TextInput } from './components/TextInput'
 import { WaveformDisplay } from './voice/WaveformDisplay'
 import { ZedAvatar } from './zed/ZedAvatar'
+import { statePresets } from './zed/statePresets'
 import { useChat } from './hooks/useChat'
 import { useVoiceRecorder } from './voice/useVoiceRecorder'
 import { useWhisper } from './voice/useWhisper'
@@ -25,6 +26,7 @@ function App() {
   const [showHistory, setShowHistory] = useState(false)
   const [showTextInput, setShowTextInput] = useState(false)
   const [fluidParams, setFluidParams] = useState<FluidParams>(defaultFluidParams)
+  const [usePreset, setUsePreset] = useState(true) // 默认使用状态预设模式
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
@@ -38,6 +40,14 @@ function App() {
   }
 
   const zedState = getZedState()
+
+  // 根据模式选择参数
+  const activeParams = useMemo(() => {
+    if (usePreset) {
+      return statePresets[zedState]
+    }
+    return fluidParams
+  }, [usePreset, zedState, fluidParams])
 
   // Handle mic button click
   const handleMicClick = async () => {
@@ -76,13 +86,28 @@ function App() {
     }
   }, [messages, isLoading, speak])
 
+  // 状态预设模式切换处理
+  const handlePresetToggle = () => {
+    setUsePreset(!usePreset)
+  }
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {/* Three.js Avatar */}
-      <ZedAvatar audioIntensity={isRecording || isSpeaking ? 0.5 : 0} params={fluidParams} />
+      <ZedAvatar
+        audioIntensity={isRecording || isSpeaking ? 0.5 : 0}
+        params={activeParams}
+        smooth={usePreset}
+      />
 
       {/* Control Panel for fluid params */}
-      <ControlPanel params={fluidParams} onChange={setFluidParams} />
+      <ControlPanel
+        params={fluidParams}
+        onChange={setFluidParams}
+        usePreset={usePreset}
+        onPresetToggle={handlePresetToggle}
+        currentState={zedState}
+      />
 
       {/* Header */}
       <Header zedState={zedState} />

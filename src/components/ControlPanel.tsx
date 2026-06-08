@@ -1,6 +1,7 @@
 // src/components/ControlPanel.tsx
 
 import { useState } from 'react'
+import { stateInfo, type ZedState } from '../zed/statePresets'
 
 export interface FluidParams {
   // Particle settings
@@ -40,14 +41,26 @@ export const defaultFluidParams: FluidParams = {
 interface ControlPanelProps {
   params: FluidParams
   onChange: (params: FluidParams) => void
+  usePreset?: boolean
+  onPresetToggle?: () => void
+  currentState?: ZedState
 }
 
-export function ControlPanel({ params, onChange }: ControlPanelProps) {
+export function ControlPanel({
+  params,
+  onChange,
+  usePreset = false,
+  onPresetToggle,
+  currentState = 'idle'
+}: ControlPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
 
   const handleChange = (key: keyof FluidParams, value: number) => {
     onChange({ ...params, [key]: value })
   }
+
+  const stateLabel = stateInfo[currentState].label
+  const stateColor = stateInfo[currentState].color
 
   const sliderStyle = {
     width: '100%',
@@ -129,8 +142,44 @@ export function ControlPanel({ params, onChange }: ControlPanelProps) {
           流体参数调节
         </h3>
 
-        {/* Particle Section */}
+        {/* Mode Toggle */}
         <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <span style={{ fontSize: '12px', color: '#888' }}>模式</span>
+            <button
+              onClick={onPresetToggle}
+              style={{
+                padding: '4px 12px',
+                fontSize: '11px',
+                background: usePreset ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                border: `1px solid ${usePreset ? 'rgba(78, 205, 196, 0.5)' : 'rgba(255, 255, 255, 0.1)'}`,
+                borderRadius: '4px',
+                color: usePreset ? '#4ecdc4' : '#888',
+                cursor: 'pointer',
+              }}
+            >
+              {usePreset ? '🎭 状态预设' : '⚙ 手动控制'}
+            </button>
+          </div>
+
+          {usePreset && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#666' }}>当前状态:</span>
+              <span style={{ fontSize: '12px', color: stateColor, fontWeight: 'bold' }}>
+                {stateLabel}
+              </span>
+            </div>
+          )}
+
+          {!usePreset && (
+            <div style={{ fontSize: '11px', color: '#666', marginTop: '8px' }}>
+              手动调节参数，实时应用到粒子系统
+            </div>
+          )}
+        </div>
+
+        {/* Particle Section */}
+        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', opacity: usePreset ? 0.4 : 1, pointerEvents: usePreset ? 'none' : 'auto' }}>
           <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>粒子</div>
 
           <div style={rowStyle}>
@@ -193,7 +242,7 @@ export function ControlPanel({ params, onChange }: ControlPanelProps) {
         </div>
 
         {/* Animation Section */}
-        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', opacity: usePreset ? 0.4 : 1, pointerEvents: usePreset ? 'none' : 'auto' }}>
           <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>动画</div>
 
           <div style={rowStyle}>
@@ -268,7 +317,7 @@ export function ControlPanel({ params, onChange }: ControlPanelProps) {
         </div>
 
         {/* Visual Section */}
-        <div>
+        <div style={{ opacity: usePreset ? 0.4 : 1, pointerEvents: usePreset ? 'none' : 'auto' }}>
           <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>视觉</div>
 
           <div style={rowStyle}>

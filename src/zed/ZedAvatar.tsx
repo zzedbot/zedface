@@ -8,9 +8,10 @@ import type { FluidParams } from '../components/ControlPanel'
 interface ZedAvatarProps {
   audioIntensity?: number
   params: FluidParams
+  smooth?: boolean // 是否使用平滑过渡（状态预设模式）
 }
 
-export function ZedAvatar({ audioIntensity = 0, params }: ZedAvatarProps) {
+export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
@@ -27,9 +28,15 @@ export function ZedAvatar({ audioIntensity = 0, params }: ZedAvatarProps) {
   // Update params when they change
   useEffect(() => {
     if (particlesRef.current) {
-      particlesRef.current.updateParams(params)
+      if (smooth) {
+        // 状态预设模式：使用平滑过渡
+        particlesRef.current.setTargetParams(params)
+      } else {
+        // 手动控制模式：立即应用
+        particlesRef.current.updateParams(params)
+      }
     }
-  }, [params])
+  }, [params, smooth])
 
   useEffect(() => {
     if (!containerRef.current) return
