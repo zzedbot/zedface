@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Header } from './components/Header'
 import { SubtitleDisplay } from './components/SubtitleDisplay'
 import { ControlBar } from './components/ControlBar'
+import { ControlPanel, defaultFluidParams } from './components/ControlPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { TextInput } from './components/TextInput'
 import { WaveformDisplay } from './voice/WaveformDisplay'
@@ -13,6 +14,7 @@ import { useVoiceRecorder } from './voice/useVoiceRecorder'
 import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
 import type { ZedState } from './types'
+import type { FluidParams } from './components/ControlPanel'
 
 function App() {
   const { messages, isLoading, sendUserMessage, setListening } = useChat()
@@ -22,6 +24,7 @@ function App() {
 
   const [showHistory, setShowHistory] = useState(false)
   const [showTextInput, setShowTextInput] = useState(false)
+  const [fluidParams, setFluidParams] = useState<FluidParams>(defaultFluidParams)
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
@@ -76,7 +79,10 @@ function App() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {/* Three.js Avatar */}
-      <ZedAvatar audioIntensity={isRecording || isSpeaking ? 0.5 : 0} />
+      <ZedAvatar audioIntensity={isRecording || isSpeaking ? 0.5 : 0} params={fluidParams} />
+
+      {/* Control Panel for fluid params */}
+      <ControlPanel params={fluidParams} onChange={setFluidParams} />
 
       {/* Header */}
       <Header zedState={zedState} />

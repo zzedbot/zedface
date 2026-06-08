@@ -3,12 +3,14 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { FluidParticles } from './FluidParticles'
+import type { FluidParams } from '../components/ControlPanel'
 
 interface ZedAvatarProps {
   audioIntensity?: number
+  params: FluidParams
 }
 
-export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
+export function ZedAvatar({ audioIntensity = 0, params }: ZedAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
@@ -17,10 +19,17 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
   const animationRef = useRef<number | undefined>(undefined)
   const audioIntensityRef = useRef(audioIntensity)
 
-  // Keep ref in sync with prop
+  // Keep refs in sync with props
   useEffect(() => {
     audioIntensityRef.current = audioIntensity
   }, [audioIntensity])
+
+  // Update params when they change
+  useEffect(() => {
+    if (particlesRef.current) {
+      particlesRef.current.updateParams(params)
+    }
+  }, [params])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -35,7 +44,8 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
 
     // Camera
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 100)
-    camera.position.z = 8
+    camera.position.z = 6
+    camera.position.y = 0.5
     cameraRef.current = camera
 
     // Renderer
@@ -49,7 +59,7 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
     rendererRef.current = renderer
 
     // Particles
-    const particles = new FluidParticles(scene)
+    const particles = new FluidParticles(scene, params)
     particlesRef.current = particles
 
     // Animation loop
