@@ -60,6 +60,7 @@ export class FluidParticles {
       uColorMixSpeed: { value: this.params.colorMixSpeed },
       uGlowIntensity: { value: this.params.glowIntensity },
       uAlphaBase: { value: this.params.alphaBase },
+      uParticleSize: { value: this.params.particleSize },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -99,6 +100,7 @@ export class FluidParticles {
     this.uniforms.uColorMixSpeed.value = params.colorMixSpeed
     this.uniforms.uGlowIntensity.value = params.glowIntensity
     this.uniforms.uAlphaBase.value = params.alphaBase
+    this.uniforms.uParticleSize.value = params.particleSize
 
     // Rebuild particles if count or radius changed
     if (needsRebuild) {

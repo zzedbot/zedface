@@ -41,7 +41,7 @@ export function Header({ zedState }: HeaderProps) {
         left: 0,
         right: 0,
         display: 'flex',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         alignItems: 'center',
         padding: '16px 24px',
         zIndex: 10,
@@ -62,6 +62,8 @@ export function Header({ zedState }: HeaderProps) {
 
       <div
         style={{
+          position: 'absolute',
+          right: '24px',
           display: 'flex',
           alignItems: 'center',
           gap: '8px',

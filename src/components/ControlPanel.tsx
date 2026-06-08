@@ -5,6 +5,7 @@ import { useState } from 'react'
 export interface FluidParams {
   // Particle settings
   particleCount: number
+  particleSize: number
   radius: number
 
   // Animation
@@ -22,6 +23,7 @@ export interface FluidParams {
 
 export const defaultFluidParams: FluidParams = {
   particleCount: 12000,
+  particleSize: 8.0,
   radius: 2.5,
   animSpeed: 0.8,
   breathSpeed: 1.2,
@@ -155,6 +157,20 @@ export function ControlPanel({ params, onChange }: ControlPanelProps) {
               style={sliderStyle}
             />
             <span style={valueStyle}>{params.radius.toFixed(1)}</span>
+          </div>
+
+          <div style={rowStyle}>
+            <span style={labelStyle}>粒子大小</span>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              step="0.5"
+              value={params.particleSize}
+              onChange={(e) => handleChange('particleSize', Number(e.target.value))}
+              style={sliderStyle}
+            />
+            <span style={valueStyle}>{params.particleSize.toFixed(1)}</span>
           </div>
         </div>
 

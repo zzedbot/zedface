@@ -3,6 +3,7 @@
 export const vertexShader = `
   uniform float uTime;
   uniform float uAudioIntensity;
+  uniform float uParticleSize;
   uniform vec2 uMouse;
   uniform float uAnimSpeed;
   uniform float uBreathSpeed;
@@ -36,7 +37,7 @@ export const vertexShader = `
 
     vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = aScale * 8.0 * (1.0 / -mvPosition.z);
+    gl_PointSize = aScale * uParticleSize * (1.0 / -mvPosition.z);
 
     // Color gradient (cyan to magenta)
     float colorMix = (sin(uTime * uColorMixSpeed + aRandomness * 6.28) + 1.0) * 0.5;
