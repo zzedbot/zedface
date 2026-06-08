@@ -9,6 +9,17 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
 
+// 十六进制颜色转 RGB
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (!result) return { r: 0.306, g: 0.804, b: 0.769 } // fallback to #4ecdc4
+  return {
+    r: parseInt(result[1], 16) / 255,
+    g: parseInt(result[2], 16) / 255,
+    b: parseInt(result[3], 16) / 255,
+  }
+}
+
 export class FluidParticles {
   private scene: THREE.Scene
   private particles: THREE.Points | null = null
@@ -74,6 +85,12 @@ export class FluidParticles {
       uAlphaBase: { value: this.currentParams.alphaBase },
       uParticleSize: { value: this.currentParams.particleSize },
       uParticleSides: { value: this.currentParams.particleSides },
+      uPrimaryColor: { value: new THREE.Vector3(
+        ...Object.values(hexToRgb(this.currentParams.primaryColor))
+      ) },
+      uSecondaryColor: { value: new THREE.Vector3(
+        ...Object.values(hexToRgb(this.currentParams.secondaryColor))
+      ) },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -106,6 +123,10 @@ export class FluidParticles {
     this.currentParams.alphaBase = lerp(this.currentParams.alphaBase, this.targetParams.alphaBase, t)
     this.currentParams.particleSize = lerp(this.currentParams.particleSize, this.targetParams.particleSize, t)
 
+    // 颜色参数直接更新（不插值）
+    this.currentParams.primaryColor = this.targetParams.primaryColor
+    this.currentParams.secondaryColor = this.targetParams.secondaryColor
+
     // 对于需要重建的属性，使用阈值判断是否更新
     const radiusDiff = Math.abs(this.currentParams.radius - this.targetParams.radius)
     const countDiff = Math.abs(this.currentParams.particleCount - this.targetParams.particleCount)
@@ -137,6 +158,12 @@ export class FluidParticles {
     this.uniforms.uParticleSize.value = this.currentParams.particleSize
     this.uniforms.uParticleSides.value = this.currentParams.particleSides
 
+    // 更新颜色 uniforms
+    const primaryRgb = hexToRgb(this.currentParams.primaryColor)
+    const secondaryRgb = hexToRgb(this.currentParams.secondaryColor)
+    this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
+    this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
+
     if (this.particles) {
       this.particles.rotation.y = time * this.currentParams.rotationSpeed
     }
@@ -162,6 +189,12 @@ export class FluidParticles {
     this.uniforms.uAlphaBase.value = params.alphaBase
     this.uniforms.uParticleSize.value = params.particleSize
     this.uniforms.uParticleSides.value = params.particleSides
+
+    // 更新颜色 uniforms
+    const primaryRgb = hexToRgb(params.primaryColor)
+    const secondaryRgb = hexToRgb(params.secondaryColor)
+    this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
+    this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
 
     // 重建粒子
     if (this.particles) {

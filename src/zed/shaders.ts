@@ -12,6 +12,8 @@ export const vertexShader = `
   uniform float uColorMixSpeed;
   uniform float uAlphaBase;
   uniform float uParticleSides;
+  uniform vec3 uPrimaryColor;
+  uniform vec3 uSecondaryColor;
 
   attribute float aScale;
   attribute float aRandomness;
@@ -40,13 +42,9 @@ export const vertexShader = `
     gl_Position = projectionMatrix * mvPosition;
     gl_PointSize = aScale * uParticleSize * (1.0 / -mvPosition.z);
 
-    // Color gradient (cyan to magenta)
+    // Color gradient (custom colors)
     float colorMix = (sin(uTime * uColorMixSpeed + aRandomness * 6.28) + 1.0) * 0.5;
-    vColor = mix(
-      vec3(0.306, 0.804, 0.769), // #4ecdc4
-      vec3(1.0, 0.420, 0.420),   // #ff6b6b
-      colorMix
-    );
+    vColor = mix(uPrimaryColor, uSecondaryColor, colorMix);
 
     vAlpha = uAlphaBase + uAudioIntensity * 0.4;
   }

@@ -22,6 +22,8 @@ export interface FluidParams {
   colorMixSpeed: number
   glowIntensity: number
   alphaBase: number
+  primaryColor: string
+  secondaryColor: string
 }
 
 export const defaultFluidParams: FluidParams = {
@@ -37,6 +39,8 @@ export const defaultFluidParams: FluidParams = {
   colorMixSpeed: 0.5,
   glowIntensity: 0.5,
   alphaBase: 0.6,
+  primaryColor: '#4ecdc4',
+  secondaryColor: '#ff6b6b',
 }
 
 interface ControlPanelProps {
@@ -213,7 +217,7 @@ export function ControlPanel({
         </div>
 
         {/* Particle Section */}
-        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', opacity: usePreset ? 0.4 : 1, pointerEvents: usePreset ? 'none' : 'auto' }}>
+        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>粒子</div>
 
           <div style={rowStyle}>
@@ -276,7 +280,7 @@ export function ControlPanel({
         </div>
 
         {/* Animation Section */}
-        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)', opacity: usePreset ? 0.4 : 1, pointerEvents: usePreset ? 'none' : 'auto' }}>
+        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>动画</div>
 
           <div style={rowStyle}>
@@ -351,7 +355,7 @@ export function ControlPanel({
         </div>
 
         {/* Visual Section */}
-        <div style={{ opacity: usePreset ? 0.4 : 1, pointerEvents: usePreset ? 'none' : 'auto' }}>
+        <div>
           <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>视觉</div>
 
           <div style={rowStyle}>
@@ -394,6 +398,42 @@ export function ControlPanel({
               style={sliderStyle}
             />
             <span style={valueStyle}>{params.alphaBase.toFixed(2)}</span>
+          </div>
+
+          <div style={rowStyle}>
+            <span style={labelStyle}>主色调</span>
+            <input
+              type="color"
+              value={params.primaryColor}
+              onChange={(e) => onChange({ ...params, primaryColor: e.target.value })}
+              style={{
+                width: '40px',
+                height: '24px',
+                border: '1px solid rgba(78, 205, 196, 0.3)',
+                borderRadius: '4px',
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+            />
+            <span style={valueStyle}>{params.primaryColor}</span>
+          </div>
+
+          <div style={rowStyle}>
+            <span style={labelStyle}>次色调</span>
+            <input
+              type="color"
+              value={params.secondaryColor}
+              onChange={(e) => onChange({ ...params, secondaryColor: e.target.value })}
+              style={{
+                width: '40px',
+                height: '24px',
+                border: '1px solid rgba(78, 205, 196, 0.3)',
+                borderRadius: '4px',
+                background: 'transparent',
+                cursor: 'pointer',
+              }}
+            />
+            <span style={valueStyle}>{params.secondaryColor}</span>
           </div>
         </div>
 

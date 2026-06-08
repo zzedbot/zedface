@@ -17,6 +17,7 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const particlesRef = useRef<FluidParticles | null>(null)
+  const ringRef = useRef<THREE.Mesh | null>(null)
   const animationRef = useRef<number | undefined>(undefined)
   const audioIntensityRef = useRef(audioIntensity)
 
@@ -25,16 +26,22 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
     audioIntensityRef.current = audioIntensity
   }, [audioIntensity])
 
-  // Update params when they change
+  // Update params when they change (keep current radius and particleSize from control panel)
   useEffect(() => {
     if (particlesRef.current) {
       if (smooth) {
-        // 状态预设模式：使用平滑过渡
         particlesRef.current.setTargetParams(params)
       } else {
-        // 手动控制模式：立即应用
         particlesRef.current.updateParams(params)
       }
+    }
+
+    // Update ring radius
+    if (ringRef.current) {
+      const ring = ringRef.current
+      const geometry = new THREE.TorusGeometry(params.radius, 0.02, 16, 100)
+      ring.geometry.dispose()
+      ring.geometry = geometry
     }
   }, [params, smooth])
 
@@ -69,6 +76,18 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
     const particles = new FluidParticles(scene, params)
     particlesRef.current = particles
 
+    // Ring
+    const ringGeometry = new THREE.TorusGeometry(params.radius, 0.02, 16, 100)
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: 0x4ecdc4,
+      transparent: true,
+      opacity: 0.3,
+    })
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial)
+    ring.rotation.x = Math.PI / 2
+    scene.add(ring)
+    ringRef.current = ring
+
     // Animation loop
     const clock = new THREE.Clock()
     const animate = () => {
@@ -97,6 +116,11 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
       }
       if (particlesRef.current) {
         particlesRef.current.dispose()
+      }
+      if (ringRef.current) {
+        ringRef.current.geometry.dispose()
+        ;(ringRef.current.material as THREE.Material).dispose()
+        scene.remove(ringRef.current)
       }
       if (rendererRef.current) {
         rendererRef.current.dispose()

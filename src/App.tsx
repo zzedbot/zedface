@@ -1,6 +1,6 @@
 // src/App.tsx
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Header } from './components/Header'
 import { SubtitleDisplay } from './components/SubtitleDisplay'
 import { ControlBar } from './components/ControlBar'
@@ -42,13 +42,8 @@ function App() {
 
   const zedState = debugState ?? getAutoState()
 
-  // 根据模式选择参数
-  const activeParams = useMemo(() => {
-    if (usePreset) {
-      return statePresets[zedState]
-    }
-    return fluidParams
-  }, [usePreset, zedState, fluidParams])
+  // 根据模式选择参数：始终使用 fluidParams（用户调整后的参数）
+  const activeParams = fluidParams
 
   // Handle mic button click
   const handleMicClick = async () => {
@@ -95,6 +90,7 @@ function App() {
   // 调试状态切换
   const handleStateChange = (state: ZedState) => {
     setDebugState(state)
+    setFluidParams(statePresets[state])
   }
 
   // 当用户开始新的交互时，清除调试状态
