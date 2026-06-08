@@ -1,0 +1,64 @@
+/* src/styles/global.css */
+
+:root {
+  --color-primary: #4ecdc4;
+  --color-secondary: #ff6b6b;
+  --bg-dark: #0f0c29;
+  --bg-mid: #302b63;
+  --bg-light: #24243e;
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --text-primary: #e0e0ff;
+  --text-secondary: #888888;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(180deg, var(--bg-dark), var(--bg-mid), var(--bg-light));
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+
+.glow-primary {
+  box-shadow: 0 0 20px rgba(78, 205, 196, 0.3);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
+}
+
+button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:active {
+  transform: scale(0.95);
+}

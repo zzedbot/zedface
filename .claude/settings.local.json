@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(npm create *)",
+      "Bash(npx create-vite@latest . --template react-ts --overwrite)",
+      "Bash(npm install *)",
+      "Bash(npx vite *)",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(npx tsc *)",
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('deps:', JSON.stringify\\(p.dependencies, null, 2\\)\\); console.log\\('devDeps:', JSON.stringify\\(p.devDependencies, null, 2\\)\\)\")",
+      "Bash(rm -f src/App.css src/index.css)",
+      "Bash(rm -f src/assets/react.svg src/assets/vite.svg src/assets/hero.png)",
+      "Bash(npm run *)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}
