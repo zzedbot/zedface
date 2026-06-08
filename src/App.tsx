@@ -27,19 +27,20 @@ function App() {
   const [showTextInput, setShowTextInput] = useState(false)
   const [fluidParams, setFluidParams] = useState<FluidParams>(defaultFluidParams)
   const [usePreset, setUsePreset] = useState(true) // 默认使用状态预设模式
+  const [debugState, setDebugState] = useState<ZedState | null>(null) // 调试用的手动状态覆盖
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
 
-  // Determine Zed state
-  const getZedState = (): ZedState => {
+  // Determine Zed state (with debug override)
+  const getAutoState = (): ZedState => {
     if (isRecording) return 'listening'
     if (isLoading) return 'thinking'
     if (isSpeaking) return 'speaking'
     return 'idle'
   }
 
-  const zedState = getZedState()
+  const zedState = debugState ?? getAutoState()
 
   // 根据模式选择参数
   const activeParams = useMemo(() => {
@@ -91,6 +92,18 @@ function App() {
     setUsePreset(!usePreset)
   }
 
+  // 调试状态切换
+  const handleStateChange = (state: ZedState) => {
+    setDebugState(state)
+  }
+
+  // 当用户开始新的交互时，清除调试状态
+  useEffect(() => {
+    if (isRecording || isLoading || isSpeaking) {
+      setDebugState(null)
+    }
+  }, [isRecording, isLoading, isSpeaking])
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {/* Three.js Avatar */}
@@ -107,6 +120,7 @@ function App() {
         usePreset={usePreset}
         onPresetToggle={handlePresetToggle}
         currentState={zedState}
+        onStateChange={handleStateChange}
       />
 
       {/* Header */}

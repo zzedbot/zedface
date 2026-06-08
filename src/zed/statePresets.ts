@@ -1,14 +1,6 @@
 // src/zed/statePresets.ts
 import type { FluidParams } from '../components/ControlPanel'
-
-export type ZedState =
-  | 'idle'
-  | 'offline'
-  | 'reconnecting'
-  | 'listening'
-  | 'thinking'
-  | 'speaking'
-  | 'error'
+import type { ZedState } from '../types'
 
 // 状态预设参数配置
 export const statePresets: Record<ZedState, FluidParams> = {

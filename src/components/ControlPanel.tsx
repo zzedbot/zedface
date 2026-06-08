@@ -1,7 +1,8 @@
 // src/components/ControlPanel.tsx
 
 import { useState } from 'react'
-import { stateInfo, type ZedState } from '../zed/statePresets'
+import { stateInfo, statePresets } from '../zed/statePresets'
+import type { ZedState } from '../types'
 
 export interface FluidParams {
   // Particle settings
@@ -44,6 +45,7 @@ interface ControlPanelProps {
   usePreset?: boolean
   onPresetToggle?: () => void
   currentState?: ZedState
+  onStateChange?: (state: ZedState) => void
 }
 
 export function ControlPanel({
@@ -51,7 +53,8 @@ export function ControlPanel({
   onChange,
   usePreset = false,
   onPresetToggle,
-  currentState = 'idle'
+  currentState = 'idle',
+  onStateChange
 }: ControlPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -61,6 +64,7 @@ export function ControlPanel({
 
   const stateLabel = stateInfo[currentState].label
   const stateColor = stateInfo[currentState].color
+  const allStates = Object.keys(statePresets) as ZedState[]
 
   const sliderStyle = {
     width: '100%',
@@ -163,12 +167,42 @@ export function ControlPanel({
           </div>
 
           {usePreset && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', color: '#666' }}>当前状态:</span>
-              <span style={{ fontSize: '12px', color: stateColor, fontWeight: 'bold' }}>
-                {stateLabel}
-              </span>
-            </div>
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <span style={{ fontSize: '11px', color: '#666' }}>当前状态:</span>
+                <span style={{ fontSize: '12px', color: stateColor, fontWeight: 'bold' }}>
+                  {stateLabel}
+                </span>
+              </div>
+
+              {/* State Quick Switch Buttons */}
+              <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>快速切换:</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                {allStates.map((state) => {
+                  const info = stateInfo[state]
+                  const isActive = currentState === state
+                  return (
+                    <button
+                      key={state}
+                      onClick={() => onStateChange?.(state)}
+                      style={{
+                        padding: '6px 8px',
+                        fontSize: '11px',
+                        background: isActive ? `${info.color}22` : 'rgba(255, 255, 255, 0.03)',
+                        border: `1px solid ${isActive ? info.color : 'rgba(255, 255, 255, 0.08)'}`,
+                        borderRadius: '4px',
+                        color: isActive ? info.color : '#888',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        textAlign: 'left' as const,
+                      }}
+                    >
+                      {info.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           {!usePreset && (

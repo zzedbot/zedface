@@ -23,4 +23,11 @@ export interface OpenClawResponse {
   error?: string
 }
 
-export type ZedState = 'idle' | 'listening' | 'thinking' | 'speaking'
+export type ZedState =
+  | 'idle'
+  | 'offline'
+  | 'reconnecting'
+  | 'listening'
+  | 'thinking'
+  | 'speaking'
+  | 'error'
