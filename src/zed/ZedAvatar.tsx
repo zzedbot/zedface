@@ -105,5 +105,4 @@ export function ZedAvatar({ audioIntensity = 0 }: ZedAvatarProps) {
       }}
     />
   )
-  )
 }
