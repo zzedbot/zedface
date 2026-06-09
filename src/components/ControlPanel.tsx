@@ -27,10 +27,10 @@ export interface FluidParams {
 }
 
 export const defaultFluidParams: FluidParams = {
-  particleCount: 12000,
-  particleSize: 8.0,
+  particleCount: 6000,
+  particleSize: 15.0,
   particleSides: 0, // 0=circle, 3=triangle, 4=square...
-  radius: 2.5,
+  radius: 1.5,
   animSpeed: 0.8,
   breathSpeed: 1.2,
   breathAmplitude: 0.15,

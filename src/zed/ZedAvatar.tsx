@@ -17,7 +17,6 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const particlesRef = useRef<FluidParticles | null>(null)
-  const ringRef = useRef<THREE.Mesh | null>(null)
   const animationRef = useRef<number | undefined>(undefined)
   const audioIntensityRef = useRef(audioIntensity)
 
@@ -28,20 +27,17 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
 
   // Update params when they change (keep current radius and particleSize from control panel)
   useEffect(() => {
+    console.log('[ZedAvatar] params changed, smooth:', smooth, 'animSpeed:', params.animSpeed)
     if (particlesRef.current) {
       if (smooth) {
+        console.log('[ZedAvatar] calling setTargetParams')
         particlesRef.current.setTargetParams(params)
       } else {
+        console.log('[ZedAvatar] calling updateParams')
         particlesRef.current.updateParams(params)
       }
-    }
-
-    // Update ring radius
-    if (ringRef.current) {
-      const ring = ringRef.current
-      const geometry = new THREE.TorusGeometry(params.radius, 0.02, 16, 100)
-      ring.geometry.dispose()
-      ring.geometry = geometry
+    } else {
+      console.log('[ZedAvatar] particlesRef.current is null')
     }
   }, [params, smooth])
 
@@ -59,7 +55,7 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
     // Camera
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 100)
     camera.position.z = 6
-    camera.position.y = 0.5
+    camera.position.y = -0.5
     cameraRef.current = camera
 
     // Renderer
@@ -75,18 +71,6 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
     // Particles
     const particles = new FluidParticles(scene, params)
     particlesRef.current = particles
-
-    // Ring
-    const ringGeometry = new THREE.TorusGeometry(params.radius, 0.02, 16, 100)
-    const ringMaterial = new THREE.MeshBasicMaterial({
-      color: 0x4ecdc4,
-      transparent: true,
-      opacity: 0.3,
-    })
-    const ring = new THREE.Mesh(ringGeometry, ringMaterial)
-    ring.rotation.x = Math.PI / 2
-    scene.add(ring)
-    ringRef.current = ring
 
     // Animation loop
     const clock = new THREE.Clock()
@@ -116,11 +100,6 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
       }
       if (particlesRef.current) {
         particlesRef.current.dispose()
-      }
-      if (ringRef.current) {
-        ringRef.current.geometry.dispose()
-        ;(ringRef.current.material as THREE.Material).dispose()
-        scene.remove(ringRef.current)
       }
       if (rendererRef.current) {
         rendererRef.current.dispose()

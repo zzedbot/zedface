@@ -24,6 +24,7 @@ export interface OpenClawResponse {
 }
 
 export type ZedState =
+  | 'intro'
   | 'idle'
   | 'offline'
   | 'reconnecting'

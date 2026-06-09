@@ -32,6 +32,9 @@ export class FluidParticles {
   // 插值速度（每帧接近目标的比例）
   private lerpSpeed = 0.03
 
+  // 粒子方向向量（用于半径变化时的平滑过渡）
+  private particleDirections: Float32Array | null = null
+
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
     this.targetParams = { ...params }
@@ -46,6 +49,9 @@ export class FluidParticles {
     const scales = new Float32Array(this.currentParams.particleCount)
     const randomness = new Float32Array(this.currentParams.particleCount)
 
+    // 初始化方向向量数组
+    this.particleDirections = new Float32Array(this.currentParams.particleCount * 3)
+
     for (let i = 0; i < this.currentParams.particleCount; i++) {
       const i3 = i * 3
 
@@ -54,14 +60,23 @@ export class FluidParticles {
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(Math.random() * 2 - 1)
 
-      positions[i3] = radius * Math.sin(phi) * Math.cos(theta)
-      positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
-      positions[i3 + 2] = radius * Math.cos(phi)
+      // 保存方向向量（单位向量）
+      const dx = Math.sin(phi) * Math.cos(theta)
+      const dy = Math.sin(phi) * Math.sin(theta)
+      const dz = Math.cos(phi)
+      this.particleDirections[i3] = dx
+      this.particleDirections[i3 + 1] = dy
+      this.particleDirections[i3 + 2] = dz
+
+      // 使用方向向量计算位置
+      positions[i3] = radius * dx
+      positions[i3 + 1] = radius * dy
+      positions[i3 + 2] = radius * dz
 
       // Normals (pointing outward)
-      normals[i3] = positions[i3] / radius
-      normals[i3 + 1] = positions[i3 + 1] / radius
-      normals[i3 + 2] = positions[i3 + 2] / radius
+      normals[i3] = dx
+      normals[i3 + 1] = dy
+      normals[i3 + 2] = dz
 
       scales[i] = Math.random() * 2 + 0.5
       randomness[i] = Math.random()
@@ -123,18 +138,20 @@ export class FluidParticles {
     this.currentParams.alphaBase = lerp(this.currentParams.alphaBase, this.targetParams.alphaBase, t)
     this.currentParams.particleSize = lerp(this.currentParams.particleSize, this.targetParams.particleSize, t)
 
+    // 半径也进行插值
+    const radiusChanged = Math.abs(this.currentParams.radius - this.targetParams.radius) > 0.01
+    this.currentParams.radius = lerp(this.currentParams.radius, this.targetParams.radius, t)
+
     // 颜色参数直接更新（不插值）
     this.currentParams.primaryColor = this.targetParams.primaryColor
     this.currentParams.secondaryColor = this.targetParams.secondaryColor
 
-    // 对于需要重建的属性，使用阈值判断是否更新
-    const radiusDiff = Math.abs(this.currentParams.radius - this.targetParams.radius)
+    // 对于需要重建的属性（粒子数量、形状），使用阈值判断是否更新
     const countDiff = Math.abs(this.currentParams.particleCount - this.targetParams.particleCount)
     const sidesDiff = Math.abs(this.currentParams.particleSides - this.targetParams.particleSides)
 
-    // 如果差异足够大，立即重建
-    if (radiusDiff > 0.1 || countDiff > 100 || sidesDiff > 0.5) {
-      this.currentParams.radius = this.targetParams.radius
+    // 如果粒子数量或形状差异足够大，立即重建
+    if (countDiff > 100 || sidesDiff > 0.5) {
       this.currentParams.particleCount = this.targetParams.particleCount
       this.currentParams.particleSides = this.targetParams.particleSides
 
@@ -145,6 +162,20 @@ export class FluidParticles {
         this.scene.remove(this.particles)
       }
       this.createParticles()
+    }
+    // 如果半径变化了，更新粒子位置
+    else if (radiusChanged && this.particles && this.particleDirections) {
+      const posAttr = this.particles.geometry.attributes.position
+      const positions = posAttr.array as Float32Array
+      const radius = this.currentParams.radius
+
+      for (let i = 0; i < this.currentParams.particleCount; i++) {
+        const i3 = i * 3
+        positions[i3] = radius * this.particleDirections[i3]
+        positions[i3 + 1] = radius * this.particleDirections[i3 + 1]
+        positions[i3 + 2] = radius * this.particleDirections[i3 + 2]
+      }
+      posAttr.needsUpdate = true
     }
 
     // 更新 shader uniforms
@@ -171,6 +202,7 @@ export class FluidParticles {
 
   // 设置目标参数（触发平滑过渡）
   setTargetParams(params: FluidParams) {
+    console.log('[FluidParticles] setTargetParams called:', params.animSpeed, params.noiseAmplitude)
     this.targetParams = { ...params }
   }
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Header } from './components/Header'
 import { SubtitleDisplay } from './components/SubtitleDisplay'
 import { ControlBar } from './components/ControlBar'
-import { ControlPanel, defaultFluidParams } from './components/ControlPanel'
+import { ControlPanel } from './components/ControlPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { TextInput } from './components/TextInput'
 import { WaveformDisplay } from './voice/WaveformDisplay'
@@ -25,22 +25,36 @@ function App() {
 
   const [showHistory, setShowHistory] = useState(false)
   const [showTextInput, setShowTextInput] = useState(false)
-  const [fluidParams, setFluidParams] = useState<FluidParams>(defaultFluidParams)
+  const [fluidParams, setFluidParams] = useState<FluidParams>(statePresets.intro)
   const [usePreset, setUsePreset] = useState(true) // 默认使用状态预设模式
-  const [debugState, setDebugState] = useState<ZedState | null>(null) // 调试用的手动状态覆盖
+  const [debugState, setDebugState] = useState<ZedState>('intro') // 初始状态为 intro
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
 
+  // 初始化后自动从 intro 切换到 idle
+  useEffect(() => {
+    if (debugState === 'intro') {
+      const timer = setTimeout(() => {
+        setDebugState('idle')
+        setFluidParams(statePresets.idle)
+      }, 2000) // 2秒后切换
+      return () => clearTimeout(timer)
+    }
+  }, [debugState])
+
   // Determine Zed state (with debug override)
   const getAutoState = (): ZedState => {
+    // 如果有调试状态，优先使用
+    if (debugState) return debugState
+    // 根据交互状态自动切换
     if (isRecording) return 'listening'
     if (isLoading) return 'thinking'
     if (isSpeaking) return 'speaking'
     return 'idle'
   }
 
-  const zedState = debugState ?? getAutoState()
+  const zedState = getAutoState()
 
   // 根据模式选择参数：始终使用 fluidParams（用户调整后的参数）
   const activeParams = fluidParams
@@ -89,14 +103,16 @@ function App() {
 
   // 调试状态切换
   const handleStateChange = (state: ZedState) => {
+    console.log('[App] handleStateChange called with state:', state)
     setDebugState(state)
     setFluidParams(statePresets[state])
+    console.log('[App] setFluidParams called with:', statePresets[state])
   }
 
   // 当用户开始新的交互时，清除调试状态
   useEffect(() => {
     if (isRecording || isLoading || isSpeaking) {
-      setDebugState(null)
+      setDebugState('idle')
     }
   }, [isRecording, isLoading, isSpeaking])
 
