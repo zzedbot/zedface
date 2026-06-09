@@ -12,7 +12,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
   // intro — 初始化状态：粒子分散在全屏范围，缓慢旋转
   intro: {
     particleCount: UNIFIED_PARTICLE_COUNT,
-    particleSize: 8.0, // 较小的粒子
+    particleSize: 50.0, // 增大粒子大小，补偿半径增大导致的视觉缩小
     particleSides: 0, // 圆形
     radius: 8.0, // 大半径，粒子分散
     animSpeed: 0.3,

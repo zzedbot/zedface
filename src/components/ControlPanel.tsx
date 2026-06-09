@@ -142,7 +142,7 @@ export function ControlPanel({
           borderRadius: '12px',
           zIndex: 99,
           transition: 'left 0.3s ease',
-          maxHeight: '80vh',
+          maxHeight: 'calc(100vh - 80px)',
           overflowY: 'auto',
         }}
       >

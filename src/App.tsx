@@ -32,17 +32,6 @@ function App() {
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
 
-  // 初始化后自动从 intro 切换到 idle
-  useEffect(() => {
-    if (debugState === 'intro') {
-      const timer = setTimeout(() => {
-        setDebugState('idle')
-        setFluidParams(statePresets.idle)
-      }, 2000) // 2秒后切换
-      return () => clearTimeout(timer)
-    }
-  }, [debugState])
-
   // Determine Zed state (with debug override)
   const getAutoState = (): ZedState => {
     // 如果有调试状态，优先使用
