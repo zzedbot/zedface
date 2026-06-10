@@ -1,6 +1,6 @@
 // src/App.tsx
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Header } from './components/Header'
 import { SubtitleDisplay } from './components/SubtitleDisplay'
 import { ControlBar } from './components/ControlBar'
@@ -14,6 +14,7 @@ import { useChat } from './hooks/useChat'
 import { useVoiceRecorder } from './voice/useVoiceRecorder'
 import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
+import { useControlSocket } from './hooks/useControlSocket'
 import type { ZedState } from './types'
 import type { FluidParams } from './components/ControlPanel'
 
@@ -31,6 +32,25 @@ function App() {
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
+
+  // WebSocket 控制回调
+  const handleControlStateChange = useCallback((state: ZedState) => {
+    console.log('[App] Control: setState', state)
+    setDebugState(state)
+    setFluidParams(statePresets[state])
+  }, [])
+
+  const handleControlParamsChange = useCallback((params: Partial<FluidParams>) => {
+    console.log('[App] Control: setParams', params)
+    setFluidParams(prev => ({ ...prev, ...params }))
+  }, [])
+
+  // WebSocket 连接
+  useControlSocket({
+    url: 'ws://localhost:3001',
+    onStateChange: handleControlStateChange,
+    onParamsChange: handleControlParamsChange,
+  })
 
   // Determine Zed state (with debug override)
   const getAutoState = (): ZedState => {
