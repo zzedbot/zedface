@@ -46,7 +46,7 @@ export class CanvasSampler {
   }
 
   /**
-   * 采样文字（支持自动换行和缩放）
+   * 采样文字（支持自动换行和缩放，保证文字不变形）
    */
   sampleText(text: string, options: SampleOptions = {}): Float32Array {
     const {
@@ -60,88 +60,72 @@ export class CanvasSampler {
     const maxWidth = options.maxWidth || maxDisplay.maxWidth
     const maxHeight = options.maxHeight || maxDisplay.maxHeight
 
-    // 自动调整字体大小以适应最大尺寸
-    let adjustedFontSize = fontSize
-    let lines: string[] = [text]
+    // 按空格分割单词（支持英文单词不截断）
+    const words = text.split(' ')
 
-    // 先尝试不换行的情况
-    this.ctx.font = `bold ${adjustedFontSize}px ${fontFamily}`
-    let textWidth = this.ctx.measureText(text).width
+    // 从大到小尝试字体大小，找到最合适的
+    let bestFontSize = fontSize
+    let bestLines: string[] = []
+    let bestCanvasWidth = 0
+    let bestCanvasHeight = 0
 
-    // 如果文字太宽，尝试缩小字体
-    if (textWidth > maxWidth) {
-      adjustedFontSize = Math.floor(adjustedFontSize * (maxWidth / textWidth))
-      this.ctx.font = `bold ${adjustedFontSize}px ${fontFamily}`
-      textWidth = this.ctx.measureText(text).width
-    }
+    for (let fs = fontSize; fs >= 20; fs -= 5) {
+      this.ctx.font = `bold ${fs}px ${fontFamily}`
 
-    // 如果还是太宽，进行换行
-    if (textWidth > maxWidth && text.length > 1) {
-      lines = this.wrapText(text, adjustedFontSize, fontFamily, maxWidth)
+      // 按单词换行
+      const lines: string[] = []
+      let currentLine = ''
 
-      // 计算换行后的总高度
-      const lineHeight = adjustedFontSize * 1.2
+      for (const word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word
+        const testWidth = this.ctx.measureText(testLine).width
+
+        if (testWidth > maxWidth && currentLine) {
+          lines.push(currentLine)
+          currentLine = word
+        } else {
+          currentLine = testLine
+        }
+      }
+      if (currentLine) lines.push(currentLine)
+
+      // 计算画布尺寸
+      const lineHeight = fs * 1.2
+      const lineWidths = lines.map(line => this.ctx.measureText(line).width)
+      const maxLineWidth = Math.max(...lineWidths)
       const totalHeight = lines.length * lineHeight
 
-      // 如果总高度超过最大高度，继续缩小字体
-      if (totalHeight > maxHeight) {
-        const scale = maxHeight / totalHeight
-        adjustedFontSize = Math.floor(adjustedFontSize * scale)
-        lines = this.wrapText(text, adjustedFontSize, fontFamily, maxWidth)
-      }
+      // 检查是否超出最大高度
+      if (totalHeight > maxHeight) continue
+
+      // 找到合适的尺寸
+      bestFontSize = fs
+      bestLines = lines
+      bestCanvasWidth = Math.ceil(maxLineWidth * 1.1) // 留 10% 边距
+      bestCanvasHeight = Math.ceil(totalHeight * 1.1)
+      break
     }
 
-    // 计算 canvas 尺寸
-    const lineHeight = adjustedFontSize * 1.2
-    const canvasWidth = Math.ceil(maxWidth)
-    const canvasHeight = Math.ceil(Math.max(lineHeight * 1.5, lines.length * lineHeight * 1.2))
+    // 创建画布
+    this.canvas.width = bestCanvasWidth
+    this.canvas.height = bestCanvasHeight
 
-    this.canvas.width = canvasWidth
-    this.canvas.height = canvasHeight
+    // 清空画布
+    this.ctx.clearRect(0, 0, bestCanvasWidth, bestCanvasHeight)
 
-    // 清空 canvas
-    this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-
-    // 绘制文字（支持多行）
+    // 绘制文字
     this.ctx.fillStyle = color
-    this.ctx.font = `bold ${adjustedFontSize}px ${fontFamily}`
+    this.ctx.font = `bold ${bestFontSize}px ${fontFamily}`
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
 
-    const startY = canvasHeight / 2 - ((lines.length - 1) * lineHeight) / 2
-    lines.forEach((line, index) => {
-      this.ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
+    const lineHeight = bestFontSize * 1.2
+    const startY = bestCanvasHeight / 2 - ((bestLines.length - 1) * lineHeight) / 2
+    bestLines.forEach((line, index) => {
+      this.ctx.fillText(line, bestCanvasWidth / 2, startY + index * lineHeight)
     })
 
     return this.samplePixels(maxPoints)
-  }
-
-  /**
-   * 文字换行
-   */
-  private wrapText(text: string, fontSize: number, fontFamily: string, maxWidth: number): string[] {
-    this.ctx.font = `bold ${fontSize}px ${fontFamily}`
-    const lines: string[] = []
-    let currentLine = ''
-
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i]
-      const testLine = currentLine + char
-      const testWidth = this.ctx.measureText(testLine).width
-
-      if (testWidth > maxWidth && currentLine.length > 0) {
-        lines.push(currentLine)
-        currentLine = char
-      } else {
-        currentLine = testLine
-      }
-    }
-
-    if (currentLine) {
-      lines.push(currentLine)
-    }
-
-    return lines
   }
 
   /**
