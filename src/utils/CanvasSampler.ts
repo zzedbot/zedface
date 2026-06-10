@@ -335,18 +335,20 @@ export class CanvasSampler {
 
     // 目标展示区域大小
     const showRadius = 3.0
-    const aspectRatio = canvasWidth / canvasHeight
+
+    // 使用 canvas 的最大维度作为参考，保持比例
+    const maxDimension = Math.max(canvasWidth, canvasHeight)
 
     for (let i = 0; i < points.length; i++) {
       const [x, y] = points[i]
       const i3 = i * 3
 
-      // 归一化到 [-1, 1] 范围
-      const normalizedX = (x / canvasWidth) * 2 - 1
-      const normalizedY = -((y / canvasHeight) * 2 - 1) // Y 轴翻转
+      // 归一化到 [-1, 1] 范围，使用最大维度保持一致的比例
+      const normalizedX = ((x / maxDimension) * 2 - 1) * (canvasWidth / maxDimension)
+      const normalizedY = -(((y / maxDimension) * 2 - 1) * (canvasHeight / maxDimension)) // Y 轴翻转
 
       // 映射到 3D 空间
-      positions[i3] = normalizedX * showRadius * aspectRatio
+      positions[i3] = normalizedX * showRadius
       positions[i3 + 1] = normalizedY * showRadius
       positions[i3 + 2] = (Math.random() - 0.5) * 0.2 // Z 轴轻微随机深度
     }
