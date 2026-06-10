@@ -67,7 +67,10 @@ export class CanvasSampler {
     // 按空格分割单词
     const words = text.split(' ')
 
-    // 从大到小尝试字体大小
+    // 从大到小尝试字体大小，找到能填满展示区域的最大字体
+    let bestFontSize = fontSize
+    let bestLines: string[] = []
+
     for (let fs = fontSize; fs >= 20; fs -= 5) {
       this.ctx.font = `bold ${fs}px ${fontFamily}`
 
@@ -88,60 +91,43 @@ export class CanvasSampler {
       }
       if (currentLine) lines.push(currentLine)
 
-      // 计算文字实际尺寸
+      // 计算文字实际高度
       const lineHeight = fs * 1.2
-      const lineWidths = lines.map(line => this.ctx.measureText(line).width)
-      const maxLineWidth = Math.max(...lineWidths)
       const totalHeight = lines.length * lineHeight
 
       // 检查是否超出最大高度
       if (totalHeight > maxDisplayHeight) continue
 
-      // 根据屏幕宽高比计算 Canvas 尺寸
-      // 让 Canvas 的宽高比和屏幕一致，确保 3D 展示时不变形
-      let canvasWidth = Math.ceil(maxLineWidth * 1.2) // 留 20% 边距
-      let canvasHeight = Math.ceil(totalHeight * 1.2)
-
-      // 调整到屏幕宽高比
-      const canvasAspectRatio = canvasWidth / canvasHeight
-      if (canvasAspectRatio > screenAspectRatio) {
-        // Canvas 太宽，保持高度，增加高度以匹配宽高比
-        canvasHeight = Math.ceil(canvasWidth / screenAspectRatio)
-      } else {
-        // Canvas 太高，保持宽度，增加宽度以匹配宽高比
-        canvasWidth = Math.ceil(canvasHeight * screenAspectRatio)
-      }
-
-      // 创建 Canvas
-      this.canvas.width = canvasWidth
-      this.canvas.height = canvasHeight
-
-      // 清空 Canvas
-      this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-
-      // 绘制文字（居中）
-      this.ctx.fillStyle = color
-      this.ctx.font = `bold ${fs}px ${fontFamily}`
-      this.ctx.textAlign = 'center'
-      this.ctx.textBaseline = 'middle'
-
-      const startY = canvasHeight / 2 - ((lines.length - 1) * lineHeight) / 2
-      lines.forEach((line, index) => {
-        this.ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
-      })
-
-      return this.samplePixels(maxPoints)
+      // 找到合适的字体大小
+      bestFontSize = fs
+      bestLines = lines
+      break
     }
 
-    // 如果所有字体都太大，使用最小字体
-    this.canvas.width = Math.ceil(maxDisplayWidth)
-    this.canvas.height = Math.ceil(maxDisplayWidth / screenAspectRatio)
-    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+    // 使用最大展示区域作为 Canvas 尺寸，确保填满整个展示区域
+    const canvasWidth = Math.ceil(maxDisplayWidth)
+    const canvasHeight = Math.ceil(maxDisplayWidth / screenAspectRatio)
+
+    // 创建 Canvas
+    this.canvas.width = canvasWidth
+    this.canvas.height = canvasHeight
+
+    // 清空 Canvas
+    this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+
+    // 绘制文字（居中）
     this.ctx.fillStyle = color
-    this.ctx.font = `bold 20px ${fontFamily}`
+    this.ctx.font = `bold ${bestFontSize}px ${fontFamily}`
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
-    this.ctx.fillText(text, this.canvas.width / 2, this.canvas.height / 2)
+
+    const lineHeight = bestFontSize * 1.2
+    const totalTextHeight = bestLines.length * lineHeight
+    const startY = canvasHeight / 2 - totalTextHeight / 2 + lineHeight / 2
+
+    bestLines.forEach((line, index) => {
+      this.ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
+    })
 
     return this.samplePixels(maxPoints)
   }
@@ -338,16 +324,20 @@ export class CanvasSampler {
     // 目标展示区域大小
     const showRadius = 3.0
 
+    // 计算 Canvas 的宽高比
+    const aspectRatio = canvasWidth / canvasHeight
+
     for (let i = 0; i < points.length; i++) {
       const [x, y] = points[i]
       const i3 = i * 3
 
-      // 归一化到 [-1, 1] 范围，X 和 Y 方向独立归一化
+      // 归一化到 [-1, 1] 范围
       const normalizedX = (x / canvasWidth) * 2 - 1
       const normalizedY = -((y / canvasHeight) * 2 - 1) // Y 轴翻转
 
-      // 映射到 3D 空间
-      positions[i3] = normalizedX * showRadius
+      // 映射到 3D 空间，保持宽高比
+      // X 方向乘以宽高比，确保文字不变形
+      positions[i3] = normalizedX * showRadius * aspectRatio
       positions[i3 + 1] = normalizedY * showRadius
       positions[i3 + 2] = (Math.random() - 0.5) * 0.2 // Z 轴轻微随机深度
     }
