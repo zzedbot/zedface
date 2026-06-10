@@ -228,11 +228,11 @@ export class FluidParticles {
       // 非展示模式：正常球体行为
       // 如果刚从展示模式退出，平滑过渡到球体位置
       if (this.isExitingShowMode) {
-        // 首次退出时，计算球体目标位置
+        // 首次退出时，计算球体目标位置（使用 targetParams.radius，即最终目标半径）
         if (!this.sphereTargetPositions) {
-          console.log('[FluidParticles] Calculating sphere target positions')
+          console.log('[FluidParticles] Calculating sphere target positions with target radius:', this.targetParams.radius)
           this.sphereTargetPositions = new Float32Array(this.currentParams.particleCount * 3)
-          const radius = this.currentParams.radius
+          const radius = this.targetParams.radius // 使用目标半径，而不是当前半径
 
           for (let i = 0; i < this.currentParams.particleCount; i++) {
             const i3 = i * 3
