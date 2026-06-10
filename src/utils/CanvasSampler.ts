@@ -50,7 +50,6 @@ export class CanvasSampler {
    */
   sampleText(text: string, options: SampleOptions = {}): Float32Array {
     const {
-      fontSize = 800, // 使用更大的默认字体
       fontFamily = 'Arial, sans-serif',
       color = '#ffffff',
       maxPoints = 12000,
@@ -66,45 +65,39 @@ export class CanvasSampler {
     // 按空格分割单词
     const words = text.split(' ')
 
-    // 从大到小尝试字体大小，找到能填满展示区域的最大字体
-    let bestFontSize = 20
-    let bestLines: string[] = [text]
+    // 先使用一个基准字体大小来测量文字
+    const baseFontSize = 100
+    this.ctx.font = `bold ${baseFontSize}px ${fontFamily}`
 
-    // 使用更大的步长，加快查找速度
-    const step = Math.max(10, Math.floor(fontSize / 20))
+    // 计算文字在基准字体下的尺寸
+    const lines: string[] = []
+    let currentLine = ''
+    for (const word of words) {
+      const testLine = currentLine ? currentLine + ' ' + word : word
+      const testWidth = this.ctx.measureText(testLine).width
 
-    for (let fs = fontSize; fs >= 20; fs -= step) {
-      this.ctx.font = `bold ${fs}px ${fontFamily}`
-
-      // 按单词换行
-      const lines: string[] = []
-      let currentLine = ''
-
-      for (const word of words) {
-        const testLine = currentLine ? currentLine + ' ' + word : word
-        const testWidth = this.ctx.measureText(testLine).width
-
-        if (testWidth > maxDisplayWidth && currentLine) {
-          lines.push(currentLine)
-          currentLine = word
-        } else {
-          currentLine = testLine
-        }
+      if (testWidth > maxDisplayWidth && currentLine) {
+        lines.push(currentLine)
+        currentLine = word
+      } else {
+        currentLine = testLine
       }
-      if (currentLine) lines.push(currentLine)
-
-      // 计算文字实际高度
-      const lineHeight = fs * 1.2
-      const totalHeight = lines.length * lineHeight
-
-      // 如果高度超出，继续尝试更小的字体
-      if (totalHeight > maxDisplayHeight) continue
-
-      // 找到合适的字体大小（第一个不超出的就是最大的）
-      bestFontSize = fs
-      bestLines = lines
-      break
     }
+    if (currentLine) lines.push(currentLine)
+
+    // 计算文字在基准字体下的最大宽度和总高度
+    const lineWidths = lines.map(line => this.ctx.measureText(line).width)
+    const maxLineWidth = Math.max(...lineWidths)
+    const baseLineHeight = baseFontSize * 1.2
+    const totalBaseHeight = lines.length * baseLineHeight
+
+    // 根据展示区域和文字尺寸，计算合适的字体大小
+    const widthScale = maxDisplayWidth / maxLineWidth
+    const heightScale = maxDisplayHeight / totalBaseHeight
+    const scale = Math.min(widthScale, heightScale)
+
+    // 最终的字体大小
+    const finalFontSize = Math.floor(baseFontSize * scale)
 
     // 使用最大展示区域作为 Canvas 尺寸
     const canvasWidth = Math.ceil(maxDisplayWidth)
@@ -119,15 +112,15 @@ export class CanvasSampler {
 
     // 绘制文字（居中）
     this.ctx.fillStyle = color
-    this.ctx.font = `bold ${bestFontSize}px ${fontFamily}`
+    this.ctx.font = `bold ${finalFontSize}px ${fontFamily}`
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
 
-    const lineHeight = bestFontSize * 1.2
-    const totalTextHeight = bestLines.length * lineHeight
+    const lineHeight = finalFontSize * 1.2
+    const totalTextHeight = lines.length * lineHeight
     const startY = canvasHeight / 2 - totalTextHeight / 2 + lineHeight / 2
 
-    bestLines.forEach((line, index) => {
+    lines.forEach((line, index) => {
       this.ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
     })
 
