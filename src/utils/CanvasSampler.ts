@@ -62,28 +62,36 @@ export class CanvasSampler {
     const maxDisplayWidth = screen.width * CanvasSampler.GOLDEN_RATIO
     const maxDisplayHeight = screen.height * CanvasSampler.GOLDEN_RATIO
 
-    // 按空格分割单词
-    const words = text.split(' ')
-
     // 先使用一个基准字体大小来测量文字
     const baseFontSize = 100
     this.ctx.font = `bold ${baseFontSize}px ${fontFamily}`
 
-    // 计算文字在基准字体下的尺寸
+    // 支持主动换行：先按换行符分割
+    const inputLines = text.split('\n')
     const lines: string[] = []
-    let currentLine = ''
-    for (const word of words) {
-      const testLine = currentLine ? currentLine + ' ' + word : word
-      const testWidth = this.ctx.measureText(testLine).width
 
-      if (testWidth > maxDisplayWidth && currentLine) {
-        lines.push(currentLine)
-        currentLine = word
-      } else {
-        currentLine = testLine
+    // 对每一行进行处理
+    for (const inputLine of inputLines) {
+      // 按空格分割单词
+      const words = inputLine.split(' ')
+
+      // 逐词构建行
+      let currentLine = ''
+      for (const word of words) {
+        const testLine = currentLine ? currentLine + ' ' + word : word
+        const testWidth = this.ctx.measureText(testLine).width
+
+        // 如果加上这个单词后超出最大宽度，且当前行不为空
+        if (testWidth > maxDisplayWidth && currentLine) {
+          lines.push(currentLine)  // 将当前行保存
+          currentLine = word       // 开始新行，放入当前单词
+        } else {
+          currentLine = testLine   // 继续在当前行添加单词
+        }
       }
+      // 保存当前行（即使为空也要保存，以保持换行）
+      lines.push(currentLine)
     }
-    if (currentLine) lines.push(currentLine)
 
     // 计算文字在基准字体下的最大宽度和总高度
     const lineWidths = lines.map(line => this.ctx.measureText(line).width)
