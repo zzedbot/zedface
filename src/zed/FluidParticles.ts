@@ -226,54 +226,63 @@ export class FluidParticles {
       this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
     } else if (this.particles) {
       // 非展示模式：正常球体行为
-      // 如果刚从展示模式退出，平滑过渡到球体位置
+      // 如果刚从展示模式退出，等待参数过渡完成后再过渡到球体位置
       if (this.isExitingShowMode) {
-        // 首次退出时，计算球体目标位置（使用 targetParams.radius，即最终目标半径）
-        if (!this.sphereTargetPositions) {
-          console.log('[FluidParticles] Calculating sphere target positions with target radius:', this.targetParams.radius)
-          this.sphereTargetPositions = new Float32Array(this.currentParams.particleCount * 3)
-          const radius = this.targetParams.radius // 使用目标半径，而不是当前半径
+        // 检查参数是否已经过渡完成
+        const paramsTransitioned =
+          Math.abs(this.currentParams.radius - this.targetParams.radius) < 0.01 &&
+          Math.abs(this.currentParams.particleSize - this.targetParams.particleSize) < 0.1 &&
+          Math.abs(this.currentParams.animSpeed - this.targetParams.animSpeed) < 0.01
+
+        if (paramsTransitioned) {
+          // 参数过渡完成后，计算球体目标位置
+          if (!this.sphereTargetPositions) {
+            console.log('[FluidParticles] Params transitioned, calculating sphere target positions')
+            this.sphereTargetPositions = new Float32Array(this.currentParams.particleCount * 3)
+            const radius = this.currentParams.radius // 此时 currentParams 已经接近 targetParams
+
+            for (let i = 0; i < this.currentParams.particleCount; i++) {
+              const i3 = i * 3
+              const theta = Math.random() * Math.PI * 2
+              const phi = Math.acos(Math.random() * 2 - 1)
+
+              this.sphereTargetPositions[i3] = radius * Math.sin(phi) * Math.cos(theta)
+              this.sphereTargetPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
+              this.sphereTargetPositions[i3 + 2] = radius * Math.cos(phi)
+            }
+          }
+
+          // 粒子向球体目标位置过渡
+          const posAttr = this.particles.geometry.attributes.position
+          const positions = posAttr.array as Float32Array
+          const transitionSpeed = 0.05
+          let allTransitioned = true
 
           for (let i = 0; i < this.currentParams.particleCount; i++) {
             const i3 = i * 3
-            const theta = Math.random() * Math.PI * 2
-            const phi = Math.acos(Math.random() * 2 - 1)
 
-            this.sphereTargetPositions[i3] = radius * Math.sin(phi) * Math.cos(theta)
-            this.sphereTargetPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
-            this.sphereTargetPositions[i3 + 2] = radius * Math.cos(phi)
+            positions[i3] = lerp(positions[i3], this.sphereTargetPositions[i3], transitionSpeed)
+            positions[i3 + 1] = lerp(positions[i3 + 1], this.sphereTargetPositions[i3 + 1], transitionSpeed)
+            positions[i3 + 2] = lerp(positions[i3 + 2], this.sphereTargetPositions[i3 + 2], transitionSpeed)
+
+            // 检查是否所有粒子都已过渡完成
+            const dx = positions[i3] - this.sphereTargetPositions[i3]
+            const dy = positions[i3 + 1] - this.sphereTargetPositions[i3 + 1]
+            const dz = positions[i3 + 2] - this.sphereTargetPositions[i3 + 2]
+            if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01 || Math.abs(dz) > 0.01) {
+              allTransitioned = false
+            }
+          }
+          posAttr.needsUpdate = true
+
+          // 过渡完成后清理
+          if (allTransitioned) {
+            console.log('[FluidParticles] Transition to sphere complete')
+            this.isExitingShowMode = false
+            this.sphereTargetPositions = null
           }
         }
-
-        // 粒子向球体目标位置过渡
-        const posAttr = this.particles.geometry.attributes.position
-        const positions = posAttr.array as Float32Array
-        const transitionSpeed = 0.05
-        let allTransitioned = true
-
-        for (let i = 0; i < this.currentParams.particleCount; i++) {
-          const i3 = i * 3
-
-          positions[i3] = lerp(positions[i3], this.sphereTargetPositions[i3], transitionSpeed)
-          positions[i3 + 1] = lerp(positions[i3 + 1], this.sphereTargetPositions[i3 + 1], transitionSpeed)
-          positions[i3 + 2] = lerp(positions[i3 + 2], this.sphereTargetPositions[i3 + 2], transitionSpeed)
-
-          // 检查是否所有粒子都已过渡完成
-          const dx = positions[i3] - this.sphereTargetPositions[i3]
-          const dy = positions[i3 + 1] - this.sphereTargetPositions[i3 + 1]
-          const dz = positions[i3 + 2] - this.sphereTargetPositions[i3 + 2]
-          if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01 || Math.abs(dz) > 0.01) {
-            allTransitioned = false
-          }
-        }
-        posAttr.needsUpdate = true
-
-        // 过渡完成后清理
-        if (allTransitioned) {
-          console.log('[FluidParticles] Transition to sphere complete')
-          this.isExitingShowMode = false
-          this.sphereTargetPositions = null
-        }
+        // 如果参数还没过渡完成，保持当前粒子位置不变，等待参数过渡
       }
 
       this.particles.rotation.y = time * this.currentParams.rotationSpeed
