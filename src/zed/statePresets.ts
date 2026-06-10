@@ -163,7 +163,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     noiseAmplitude: 0.05,
     breathSpeed: 0.3,
     breathAmplitude: 0.02,
-    rotationSpeed: 0.02, // 缓慢旋转
+    rotationSpeed: 0, // 展示模式下默认不旋转
     colorMixSpeed: 0.2,
     glowIntensity: 0.6,
     alphaBase: 0.8,
