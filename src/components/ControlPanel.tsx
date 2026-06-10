@@ -50,6 +50,8 @@ interface ControlPanelProps {
   onPresetToggle?: () => void
   currentState?: ZedState
   onStateChange?: (state: ZedState) => void
+  onShow?: (type: 'text' | 'emoji' | 'image' | 'shape', content: string, options?: any) => void
+  onShowEnd?: () => void
 }
 
 export function ControlPanel({
@@ -58,9 +60,13 @@ export function ControlPanel({
   usePreset = false,
   onPresetToggle,
   currentState = 'idle',
-  onStateChange
+  onStateChange,
+  onShow,
+  onShowEnd,
 }: ControlPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
+  const [showType, setShowType] = useState<'text' | 'emoji' | 'image' | 'shape'>('text')
+  const [showContent, setShowContent] = useState('Hello')
 
   const handleChange = (key: keyof FluidParams, value: number) => {
     onChange({ ...params, [key]: value })
@@ -181,7 +187,7 @@ export function ControlPanel({
 
               {/* State Quick Switch Buttons */}
               <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>快速切换:</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '12px' }}>
                 {allStates.map((state) => {
                   const info = stateInfo[state]
                   const isActive = currentState === state
@@ -190,21 +196,164 @@ export function ControlPanel({
                       key={state}
                       onClick={() => onStateChange?.(state)}
                       style={{
-                        padding: '6px 8px',
-                        fontSize: '11px',
+                        padding: '6px 4px',
+                        fontSize: '10px',
                         background: isActive ? `${info.color}22` : 'rgba(255, 255, 255, 0.03)',
                         border: `1px solid ${isActive ? info.color : 'rgba(255, 255, 255, 0.08)'}`,
                         borderRadius: '4px',
                         color: isActive ? info.color : '#888',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
-                        textAlign: 'left' as const,
+                        textAlign: 'center' as const,
                       }}
                     >
                       {info.label}
                     </button>
                   )
                 })}
+              </div>
+
+              {/* Show Content Section */}
+              <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(78, 205, 196, 0.05)', borderRadius: '6px', border: '1px solid rgba(78, 205, 196, 0.2)' }}>
+                <div style={{ fontSize: '11px', color: '#4ecdc4', marginBottom: '8px', fontWeight: 'bold' }}>📺 展示内容</div>
+
+                {/* Show Type Selection */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                  {(['text', 'emoji', 'image', 'shape'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setShowType(type)}
+                      style={{
+                        flex: 1,
+                        padding: '4px',
+                        fontSize: '10px',
+                        background: showType === type ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                        border: `1px solid ${showType === type ? 'rgba(78, 205, 196, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
+                        borderRadius: '4px',
+                        color: showType === type ? '#4ecdc4' : '#888',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {type === 'text' ? '文字' : type === 'emoji' ? 'Emoji' : type === 'image' ? '图片' : '图形'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Content Input */}
+                {showType === 'text' && (
+                  <input
+                    type="text"
+                    value={showContent}
+                    onChange={(e) => setShowContent(e.target.value)}
+                    placeholder="输入文字内容"
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(78, 205, 196, 0.2)',
+                      borderRadius: '4px',
+                      color: '#e0e0ff',
+                      fontSize: '11px',
+                      marginBottom: '8px',
+                    }}
+                  />
+                )}
+
+                {showType === 'emoji' && (
+                  <input
+                    type="text"
+                    value={showContent}
+                    onChange={(e) => setShowContent(e.target.value)}
+                    placeholder="输入 Emoji，如 😀 🎉 ❤️"
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(78, 205, 196, 0.2)',
+                      borderRadius: '4px',
+                      color: '#e0e0ff',
+                      fontSize: '14px',
+                      marginBottom: '8px',
+                    }}
+                  />
+                )}
+
+                {showType === 'image' && (
+                  <input
+                    type="text"
+                    value={showContent}
+                    onChange={(e) => setShowContent(e.target.value)}
+                    placeholder="输入图片 URL 或 Base64"
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(78, 205, 196, 0.2)',
+                      borderRadius: '4px',
+                      color: '#e0e0ff',
+                      fontSize: '10px',
+                      marginBottom: '8px',
+                    }}
+                  />
+                )}
+
+                {showType === 'shape' && (
+                  <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+                    {['heart', 'star', 'circle', 'triangle', 'square'].map((shape) => (
+                      <button
+                        key={shape}
+                        onClick={() => setShowContent(shape)}
+                        style={{
+                          flex: 1,
+                          padding: '4px',
+                          fontSize: '9px',
+                          background: showContent === shape ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          border: `1px solid ${showContent === shape ? 'rgba(78, 205, 196, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
+                          borderRadius: '4px',
+                          color: showContent === shape ? '#4ecdc4' : '#888',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {shape === 'heart' ? '❤️' : shape === 'star' ? '⭐' : shape === 'circle' ? '⚪' : shape === 'triangle' ? '△' : '□'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Show/End Buttons */}
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => onShow?.(showType, showContent)}
+                    disabled={!showContent}
+                    style={{
+                      flex: 1,
+                      padding: '6px',
+                      background: showContent ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                      border: '1px solid rgba(78, 205, 196, 0.3)',
+                      borderRadius: '4px',
+                      color: showContent ? '#4ecdc4' : '#666',
+                      fontSize: '11px',
+                      cursor: showContent ? 'pointer' : 'not-allowed',
+                    }}
+                  >
+                    展示
+                  </button>
+                  <button
+                    onClick={() => onShowEnd?.()}
+                    style={{
+                      flex: 1,
+                      padding: '6px',
+                      background: 'rgba(255, 107, 107, 0.1)',
+                      border: '1px solid rgba(255, 107, 107, 0.3)',
+                      borderRadius: '4px',
+                      color: '#ff6b6b',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    结束
+                  </button>
+                </div>
               </div>
             </>
           )}

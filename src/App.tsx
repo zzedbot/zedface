@@ -164,6 +164,8 @@ function App() {
         onPresetToggle={handlePresetToggle}
         currentState={zedState}
         onStateChange={handleStateChange}
+        onShow={handleShow}
+        onShowEnd={handleShowEnd}
       />
 
       {/* Header */}
