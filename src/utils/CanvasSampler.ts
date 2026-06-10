@@ -8,11 +8,16 @@ export interface SampleOptions {
   color?: string
   maxPoints?: number
   size?: number // 用于图形的大小
+  maxWidth?: number // 最大宽度（像素）
+  maxHeight?: number // 最大高度（像素）
 }
 
 export class CanvasSampler {
   private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
+
+  // 黄金比例
+  private static readonly GOLDEN_RATIO = 0.618
 
   constructor() {
     this.canvas = document.createElement('canvas')
@@ -20,19 +25,76 @@ export class CanvasSampler {
   }
 
   /**
-   * 采样文字
+   * 获取屏幕尺寸
+   */
+  private getScreenSize(): { width: number; height: number } {
+    return {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }
+  }
+
+  /**
+   * 获取最大展示尺寸（基于黄金比例）
+   */
+  private getMaxDisplaySize(): { maxWidth: number; maxHeight: number } {
+    const screen = this.getScreenSize()
+    return {
+      maxWidth: screen.width * CanvasSampler.GOLDEN_RATIO,
+      maxHeight: screen.height * CanvasSampler.GOLDEN_RATIO,
+    }
+  }
+
+  /**
+   * 采样文字（支持自动换行和缩放）
    */
   sampleText(text: string, options: SampleOptions = {}): Float32Array {
     const {
       fontSize = 100,
       fontFamily = 'Arial, sans-serif',
       color = '#ffffff',
-      maxPoints = 6000,
+      maxPoints = 12000,
     } = options
 
-    // 设置 canvas 尺寸
-    const canvasWidth = options.width || Math.max(400, text.length * fontSize * 0.6)
-    const canvasHeight = options.height || fontSize * 1.5
+    const maxDisplay = this.getMaxDisplaySize()
+    const maxWidth = options.maxWidth || maxDisplay.maxWidth
+    const maxHeight = options.maxHeight || maxDisplay.maxHeight
+
+    // 自动调整字体大小以适应最大尺寸
+    let adjustedFontSize = fontSize
+    let lines: string[] = [text]
+
+    // 先尝试不换行的情况
+    this.ctx.font = `bold ${adjustedFontSize}px ${fontFamily}`
+    let textWidth = this.ctx.measureText(text).width
+
+    // 如果文字太宽，尝试缩小字体
+    if (textWidth > maxWidth) {
+      adjustedFontSize = Math.floor(adjustedFontSize * (maxWidth / textWidth))
+      this.ctx.font = `bold ${adjustedFontSize}px ${fontFamily}`
+      textWidth = this.ctx.measureText(text).width
+    }
+
+    // 如果还是太宽，进行换行
+    if (textWidth > maxWidth && text.length > 1) {
+      lines = this.wrapText(text, adjustedFontSize, fontFamily, maxWidth)
+
+      // 计算换行后的总高度
+      const lineHeight = adjustedFontSize * 1.2
+      const totalHeight = lines.length * lineHeight
+
+      // 如果总高度超过最大高度，继续缩小字体
+      if (totalHeight > maxHeight) {
+        const scale = maxHeight / totalHeight
+        adjustedFontSize = Math.floor(adjustedFontSize * scale)
+        lines = this.wrapText(text, adjustedFontSize, fontFamily, maxWidth)
+      }
+    }
+
+    // 计算 canvas 尺寸
+    const lineHeight = adjustedFontSize * 1.2
+    const canvasWidth = Math.ceil(maxWidth)
+    const canvasHeight = Math.ceil(Math.max(lineHeight * 1.5, lines.length * lineHeight * 1.2))
 
     this.canvas.width = canvasWidth
     this.canvas.height = canvasHeight
@@ -40,32 +102,83 @@ export class CanvasSampler {
     // 清空 canvas
     this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
 
-    // 绘制文字
+    // 绘制文字（支持多行）
     this.ctx.fillStyle = color
-    this.ctx.font = `bold ${fontSize}px ${fontFamily}`
+    this.ctx.font = `bold ${adjustedFontSize}px ${fontFamily}`
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
-    this.ctx.fillText(text, canvasWidth / 2, canvasHeight / 2)
+
+    const startY = canvasHeight / 2 - ((lines.length - 1) * lineHeight) / 2
+    lines.forEach((line, index) => {
+      this.ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
+    })
 
     return this.samplePixels(maxPoints)
   }
 
   /**
-   * 采样 Emoji
+   * 文字换行
+   */
+  private wrapText(text: string, fontSize: number, fontFamily: string, maxWidth: number): string[] {
+    this.ctx.font = `bold ${fontSize}px ${fontFamily}`
+    const lines: string[] = []
+    let currentLine = ''
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i]
+      const testLine = currentLine + char
+      const testWidth = this.ctx.measureText(testLine).width
+
+      if (testWidth > maxWidth && currentLine.length > 0) {
+        lines.push(currentLine)
+        currentLine = char
+      } else {
+        currentLine = testLine
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine)
+    }
+
+    return lines
+  }
+
+  /**
+   * 采样 Emoji（支持自动缩放）
    */
   sampleEmoji(emoji: string, options: SampleOptions = {}): Float32Array {
     const {
       fontSize = 200,
-      maxPoints = 6000,
+      maxPoints = 12000,
     } = options
 
-    const canvasSize = options.width || fontSize * 1.2
+    const maxDisplay = this.getMaxDisplaySize()
+    const maxWidth = options.maxWidth || maxDisplay.maxWidth
+    const maxHeight = options.maxHeight || maxDisplay.maxHeight
+
+    // 自动调整字体大小以适应最大尺寸
+    let adjustedFontSize = fontSize
+    this.ctx.font = `${adjustedFontSize}px serif`
+    const metrics = this.ctx.measureText(emoji)
+    const emojiWidth = metrics.width
+    const emojiHeight = adjustedFontSize * 1.2 // 估算高度
+
+    // 如果 emoji 太大，缩小字体
+    if (emojiWidth > maxWidth || emojiHeight > maxHeight) {
+      const scaleX = maxWidth / emojiWidth
+      const scaleY = maxHeight / emojiHeight
+      const scale = Math.min(scaleX, scaleY)
+      adjustedFontSize = Math.floor(adjustedFontSize * scale)
+    }
+
+    const canvasSize = Math.ceil(adjustedFontSize * 1.5)
 
     this.canvas.width = canvasSize
     this.canvas.height = canvasSize
 
     this.ctx.clearRect(0, 0, canvasSize, canvasSize)
-    this.ctx.font = `${fontSize}px serif`
+    this.ctx.font = `${adjustedFontSize}px serif`
     this.ctx.textAlign = 'center'
     this.ctx.textBaseline = 'middle'
     this.ctx.fillText(emoji, canvasSize / 2, canvasSize / 2)
@@ -74,18 +187,24 @@ export class CanvasSampler {
   }
 
   /**
-   * 采样图片（支持 URL 和 Base64）
+   * 采样图片（支持 URL 和 Base64，自动缩放）
    */
   async sampleImage(source: string, options: SampleOptions = {}): Promise<Float32Array> {
     const {
-      width = 300,
-      height = 300,
-      maxPoints = 6000,
+      maxPoints = 12000,
     } = options
 
-    this.canvas.width = width
-    this.canvas.height = height
-    this.ctx.clearRect(0, 0, width, height)
+    const maxDisplay = this.getMaxDisplaySize()
+    const maxWidth = options.maxWidth || maxDisplay.maxWidth
+    const maxHeight = options.maxHeight || maxDisplay.maxHeight
+
+    // 使用最大显示尺寸作为 canvas 尺寸
+    const canvasWidth = Math.ceil(maxWidth)
+    const canvasHeight = Math.ceil(maxHeight)
+
+    this.canvas.width = canvasWidth
+    this.canvas.height = canvasHeight
+    this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
 
     return new Promise((resolve, reject) => {
       const img = new Image()
@@ -93,12 +212,12 @@ export class CanvasSampler {
       img.crossOrigin = 'anonymous' // 支持跨域图片
 
       img.onload = () => {
-        // 计算缩放比例，保持宽高比
-        const scale = Math.min(width / img.width, height / img.height)
+        // 计算缩放比例，保持宽高比，适应最大显示尺寸
+        const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1)
         const scaledWidth = img.width * scale
         const scaledHeight = img.height * scale
-        const x = (width - scaledWidth) / 2
-        const y = (height - scaledHeight) / 2
+        const x = (canvasWidth - scaledWidth) / 2
+        const y = (canvasHeight - scaledHeight) / 2
 
         this.ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
         resolve(this.samplePixels(maxPoints))
