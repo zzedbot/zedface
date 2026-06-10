@@ -46,18 +46,17 @@ export class CanvasSampler {
   }
 
   /**
-   * 采样文字（支持自动换行和缩放，保证文字不变形）
+   * 采样文字（支持自动换行和缩放，保证文字不变形，尽可能填满展示区域）
    */
   sampleText(text: string, options: SampleOptions = {}): Float32Array {
     const {
-      fontSize = 100,
+      fontSize = 200, // 增大默认字体大小
       fontFamily = 'Arial, sans-serif',
       color = '#ffffff',
       maxPoints = 12000,
     } = options
 
     const screen = this.getScreenSize()
-    // 使用屏幕宽高比，确保 3D 展示时不变形
     const screenAspectRatio = screen.width / screen.height
 
     // 计算最大展示尺寸（屏幕的 61.8%）
@@ -68,10 +67,10 @@ export class CanvasSampler {
     const words = text.split(' ')
 
     // 从大到小尝试字体大小，找到能填满展示区域的最大字体
-    let bestFontSize = fontSize
-    let bestLines: string[] = []
+    let bestFontSize = 20
+    let bestLines: string[] = [text]
 
-    for (let fs = fontSize; fs >= 20; fs -= 5) {
+    for (let fs = fontSize; fs >= 20; fs -= 10) {
       this.ctx.font = `bold ${fs}px ${fontFamily}`
 
       // 按单词换行
@@ -95,16 +94,26 @@ export class CanvasSampler {
       const lineHeight = fs * 1.2
       const totalHeight = lines.length * lineHeight
 
-      // 检查是否超出最大高度
+      // 如果高度超出，继续尝试更小的字体
       if (totalHeight > maxDisplayHeight) continue
 
-      // 找到合适的字体大小
+      // 检查宽度：如果最宽的一行接近最大宽度（80%以上），说明这个字体大小合适
+      const lineWidths = lines.map(line => this.ctx.measureText(line).width)
+      const maxLineWidth = Math.max(...lineWidths)
+
+      // 如果宽度达到最大宽度的 80% 以上，或者已经是最大字体，就使用这个字体
+      if (maxLineWidth > maxDisplayWidth * 0.8 || fs === fontSize) {
+        bestFontSize = fs
+        bestLines = lines
+        break
+      }
+
+      // 记录当前字体作为备选
       bestFontSize = fs
       bestLines = lines
-      break
     }
 
-    // 使用最大展示区域作为 Canvas 尺寸，确保填满整个展示区域
+    // 使用最大展示区域作为 Canvas 尺寸
     const canvasWidth = Math.ceil(maxDisplayWidth)
     const canvasHeight = Math.ceil(maxDisplayWidth / screenAspectRatio)
 
