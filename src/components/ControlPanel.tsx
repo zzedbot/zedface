@@ -241,11 +241,11 @@ export function ControlPanel({
 
                 {/* Content Input */}
                 {showType === 'text' && (
-                  <input
-                    type="text"
+                  <textarea
                     value={showContent}
                     onChange={(e) => setShowContent(e.target.value)}
-                    placeholder="输入文字内容"
+                    placeholder="输入文字内容，支持换行（回车键）"
+                    rows={3}
                     style={{
                       width: '100%',
                       padding: '6px 8px',
@@ -255,6 +255,8 @@ export function ControlPanel({
                       color: '#e0e0ff',
                       fontSize: '11px',
                       marginBottom: '8px',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
                     }}
                   />
                 )}
