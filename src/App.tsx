@@ -29,6 +29,11 @@ function App() {
   const [fluidParams, setFluidParams] = useState<FluidParams>(statePresets.intro)
   const [usePreset, setUsePreset] = useState(true) // 默认使用状态预设模式
   const [debugState, setDebugState] = useState<ZedState>('intro') // 初始状态为 intro
+  const [showContent, setShowContent] = useState<{
+    type: 'text' | 'emoji' | 'image' | 'shape'
+    content: string
+    options?: any
+  } | null>(null)
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
@@ -45,11 +50,27 @@ function App() {
     setFluidParams(prev => ({ ...prev, ...params }))
   }, [])
 
+  const handleShow = useCallback((type: 'text' | 'emoji' | 'image' | 'shape', content: string, options?: any) => {
+    console.log('[App] Control: show', type, content)
+    setDebugState('show')
+    setFluidParams(statePresets.show)
+    setShowContent({ type, content, options })
+  }, [])
+
+  const handleShowEnd = useCallback(() => {
+    console.log('[App] Control: showEnd')
+    setShowContent(null)
+    setDebugState('idle')
+    setFluidParams(statePresets.idle)
+  }, [])
+
   // WebSocket 连接
   useControlSocket({
     url: 'ws://localhost:3001',
     onStateChange: handleControlStateChange,
     onParamsChange: handleControlParamsChange,
+    onShow: handleShow,
+    onShowEnd: handleShowEnd,
   })
 
   // Determine Zed state (with debug override)
@@ -132,6 +153,7 @@ function App() {
         audioIntensity={isRecording || isSpeaking ? 0.5 : 0}
         params={activeParams}
         smooth={usePreset}
+        showContent={showContent}
       />
 
       {/* Control Panel for fluid params */}

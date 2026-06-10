@@ -152,6 +152,24 @@ export const statePresets: Record<ZedState, FluidParams> = {
     primaryColor: '#ff4757',
     secondaryColor: '#d50000',
   },
+
+  // show — 展示态：粒子形成文字、图形等展示内容
+  show: {
+    particleCount: UNIFIED_PARTICLE_COUNT,
+    particleSize: 8.0, // 展示模式粒子更小，更精细
+    particleSides: 0, // 圆形
+    radius: 3.0, // 展示区域大小
+    animSpeed: 0.1, // 展示时动画较慢
+    noiseAmplitude: 0.05,
+    breathSpeed: 0.3,
+    breathAmplitude: 0.02,
+    rotationSpeed: 0.02, // 缓慢旋转
+    colorMixSpeed: 0.2,
+    glowIntensity: 0.6,
+    alphaBase: 0.8,
+    primaryColor: '#4ecdc4',
+    secondaryColor: '#ffffff',
+  },
 }
 
 // 状态显示信息
@@ -164,4 +182,5 @@ export const stateInfo: Record<ZedState, { label: string; color: string }> = {
   thinking: { label: '思考中', color: '#ffd93d' },
   speaking: { label: '回复中', color: '#4ecdc4' },
   error: { label: '错误', color: '#ff4444' },
+  show: { label: '展示', color: '#ffffff' },
 }

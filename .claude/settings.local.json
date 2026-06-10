@@ -23,7 +23,16 @@
       "Bash(chmod +x *)",
       "Bash(npm start *)",
       "Bash(node *)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(git checkout *)",
+      "Bash(pkill -f \"node server/index.js\")",
+      "Bash(pkill -f \"node server\")",
+      "Bash(pkill -9 node)",
+      "Bash(lsof -ti:3001)",
+      "Bash(xargs kill *)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill /F /PID 29920)",
+      "PowerShell(Get-NetTCPConnection *)"
     ]
   }
 }

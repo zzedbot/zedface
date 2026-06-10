@@ -9,22 +9,34 @@ interface ControlMessage {
   value?: any;
   params?: Partial<FluidParams>;
   preset?: string;
+  type?: 'text' | 'emoji' | 'image' | 'shape';
+  content?: string;
+  options?: any;
+  // init 消息的特殊结构
+  currentState?: {
+    state: ZedState;
+    params: Partial<FluidParams>;
+  };
 }
 
 interface UseControlSocketOptions {
   url?: string;
   onStateChange?: (state: ZedState) => void;
   onParamsChange?: (params: Partial<FluidParams>) => void;
+  onShow?: (type: 'text' | 'emoji' | 'image' | 'shape', content: string, options?: any) => void;
+  onShowEnd?: () => void;
 }
 
 export function useControlSocket({
   url = 'ws://localhost:3001',
   onStateChange,
   onParamsChange,
+  onShow,
+  onShowEnd,
 }: UseControlSocketOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectTimeoutRef = useRef<number | undefined>(undefined);
 
   const connect = useCallback(() => {
     try {
@@ -44,9 +56,9 @@ export function useControlSocket({
           switch (message.action) {
             case 'init':
               // 初始化时接收当前状态
-              if (message.state) {
-                onStateChange?.(message.state.state as ZedState);
-                onParamsChange?.(message.state.params);
+              if (message.currentState) {
+                onStateChange?.(message.currentState.state);
+                onParamsChange?.(message.currentState.params);
               }
               break;
             case 'setState':
@@ -66,6 +78,16 @@ export function useControlSocket({
               break;
             case 'applyPreset':
               // 预设场景会通过多个 setParam 消息发送
+              break;
+            case 'show':
+              // 展示内容
+              if (message.type && message.content) {
+                onShow?.(message.type, message.content, message.options);
+              }
+              break;
+            case 'showEnd':
+              // 结束展示模式
+              onShowEnd?.();
               break;
           }
         } catch (error) {

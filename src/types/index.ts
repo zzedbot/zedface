@@ -32,3 +32,4 @@ export type ZedState =
   | 'thinking'
   | 'speaking'
   | 'error'
+  | 'show'

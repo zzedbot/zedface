@@ -35,6 +35,12 @@ export class FluidParticles {
   // 粒子方向向量（用于半径变化时的平滑过渡）
   private particleDirections: Float32Array | null = null
 
+  // 展示模式相关
+  private showTargetPositions: Float32Array | null = null
+  private isShowMode: boolean = false
+  private showTransitionProgress: number = 0
+  private originalPositions: Float32Array | null = null // 保存原始球体位置
+
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
     this.targetParams = { ...params }
@@ -195,7 +201,52 @@ export class FluidParticles {
     this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
     this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
 
-    if (this.particles) {
+    // 展示模式处理
+    if (this.isShowMode && this.showTargetPositions && this.particles) {
+      // 逐渐增加过渡进度
+      this.showTransitionProgress = Math.min(1, this.showTransitionProgress + 0.02)
+
+      const posAttr = this.particles.geometry.attributes.position
+      const positions = posAttr.array as Float32Array
+
+      // 粒子向目标位置过渡
+      const transitionSpeed = 0.05
+      for (let i = 0; i < this.currentParams.particleCount; i++) {
+        const i3 = i * 3
+        const targetIndex = (i % (this.showTargetPositions.length / 3)) * 3
+
+        positions[i3] = lerp(positions[i3], this.showTargetPositions[targetIndex], transitionSpeed)
+        positions[i3 + 1] = lerp(positions[i3 + 1], this.showTargetPositions[targetIndex + 1], transitionSpeed)
+        positions[i3 + 2] = lerp(positions[i3 + 2], this.showTargetPositions[targetIndex + 2], transitionSpeed)
+      }
+      posAttr.needsUpdate = true
+
+      // 在展示模式下减少旋转
+      this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
+    } else if (!this.isShowMode && this.originalPositions && this.particles) {
+      // 退出展示模式，恢复原始球体位置
+      const posAttr = this.particles.geometry.attributes.position
+      const positions = posAttr.array as Float32Array
+
+      const recoverSpeed = 0.03
+      let allRecovered = true
+
+      for (let i = 0; i < positions.length; i++) {
+        const diff = Math.abs(positions[i] - this.originalPositions[i])
+        if (diff > 0.01) {
+          allRecovered = false
+          positions[i] = lerp(positions[i], this.originalPositions[i], recoverSpeed)
+        }
+      }
+      posAttr.needsUpdate = true
+
+      // 恢复完成后清理
+      if (allRecovered) {
+        this.originalPositions = null
+      }
+
+      this.particles.rotation.y = time * this.currentParams.rotationSpeed
+    } else if (this.particles) {
       this.particles.rotation.y = time * this.currentParams.rotationSpeed
     }
   }
@@ -235,6 +286,41 @@ export class FluidParticles {
       this.scene.remove(this.particles)
     }
     this.createParticles()
+  }
+
+  /**
+   * 设置展示内容（进入展示模式）
+   */
+  setShowContent(positions: Float32Array): void {
+    console.log('[FluidParticles] Entering show mode with', positions.length / 3, 'points')
+
+    // 保存当前球体位置
+    if (this.particles && !this.originalPositions) {
+      const currentPositions = this.particles.geometry.attributes.position.array as Float32Array
+      this.originalPositions = new Float32Array(currentPositions.length)
+      this.originalPositions.set(currentPositions)
+    }
+
+    this.showTargetPositions = positions
+    this.isShowMode = true
+    this.showTransitionProgress = 0
+  }
+
+  /**
+   * 退出展示模式
+   */
+  exitShowMode(): void {
+    console.log('[FluidParticles] Exiting show mode')
+    this.isShowMode = false
+    this.showTransitionProgress = 0
+    // originalPositions 会在过渡完成后清理
+  }
+
+  /**
+   * 检查是否在展示模式
+   */
+  isInShowMode(): boolean {
+    return this.isShowMode
   }
 
   dispose() {

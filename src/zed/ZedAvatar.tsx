@@ -3,20 +3,30 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { FluidParticles } from './FluidParticles'
+import { ShowManager } from '../show/ShowManager'
 import type { FluidParams } from '../components/ControlPanel'
+
+interface ShowContent {
+  type: 'text' | 'emoji' | 'image' | 'shape'
+  content: string
+  options?: any
+}
 
 interface ZedAvatarProps {
   audioIntensity?: number
   params: FluidParams
   smooth?: boolean // 是否使用平滑过渡（状态预设模式）
+  showContent?: ShowContent | null // 展示内容
+  onShowManagerReady?: (manager: ShowManager) => void // ShowManager 就绪回调
 }
 
-export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAvatarProps) {
+export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showContent, onShowManagerReady }: ZedAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
   const particlesRef = useRef<FluidParticles | null>(null)
+  const showManagerRef = useRef<ShowManager | null>(null)
   const animationRef = useRef<number | undefined>(undefined)
   const audioIntensityRef = useRef(audioIntensity)
 
@@ -40,6 +50,33 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
       console.log('[ZedAvatar] particlesRef.current is null')
     }
   }, [params, smooth])
+
+  // Handle show content changes
+  useEffect(() => {
+    if (!showManagerRef.current) return
+
+    if (showContent) {
+      console.log('[ZedAvatar] Show content:', showContent)
+      switch (showContent.type) {
+        case 'text':
+          showManagerRef.current.showText(showContent.content, showContent.options)
+          break
+        case 'emoji':
+          showManagerRef.current.showEmoji(showContent.content, showContent.options)
+          break
+        case 'image':
+          showManagerRef.current.showImage(showContent.content, showContent.options)
+          break
+        case 'shape':
+          showManagerRef.current.showShape(showContent.content, showContent.options)
+          break
+      }
+    } else {
+      // 如果没有 showContent，退出展示模式
+      console.log('[ZedAvatar] Exit show mode')
+      showManagerRef.current.exitShow()
+    }
+  }, [showContent])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -71,6 +108,15 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false }: ZedAva
     // Particles
     const particles = new FluidParticles(scene, params)
     particlesRef.current = particles
+
+    // ShowManager
+    const showManager = new ShowManager(particles)
+    showManagerRef.current = showManager
+
+    // 通知 ShowManager 已就绪
+    if (onShowManagerReady) {
+      onShowManagerReady(showManager)
+    }
 
     // Animation loop
     const clock = new THREE.Clock()

@@ -18,12 +18,14 @@ const ALLOWED_ACTIONS = [
   'setParams',     // 批量设置参数
   'getStatus',     // 获取当前状态
   'applyPreset',   // 应用预设场景
+  'show',          // 展示内容（文字/emoji/图片/图形）
+  'showEnd',       // 结束展示模式
 ];
 
 // 允许的状态
 const ALLOWED_STATES = [
   'intro', 'idle', 'offline', 'reconnecting',
-  'listening', 'thinking', 'speaking', 'error'
+  'listening', 'thinking', 'speaking', 'error', 'show'
 ];
 
 // 允许的参数
@@ -93,6 +95,14 @@ function validateCommand(command) {
         return { valid: false, error: `Preset '${command.preset}' not allowed` };
       }
       break;
+    case 'show':
+      if (!command.type || !command.content) {
+        return { valid: false, error: 'Show action requires type and content' };
+      }
+      if (!['text', 'emoji', 'image', 'shape'].includes(command.type)) {
+        return { valid: false, error: `Show type '${command.type}' not allowed` };
+      }
+      break;
   }
 
   return { valid: true };
@@ -131,6 +141,20 @@ app.post('/api/control', authenticate, (req, res) => {
         currentState.state = preset.state;
         Object.assign(currentState.params, preset.params);
       }
+      break;
+    case 'show':
+      // 展示内容：自动切换到 show 状态
+      currentState.state = 'show';
+      currentState.showContent = {
+        type: command.type,
+        content: command.content,
+        options: command.options || {}
+      };
+      break;
+    case 'showEnd':
+      // 结束展示模式：切换回 idle 状态
+      currentState.state = 'idle';
+      currentState.showContent = null;
       break;
     case 'getStatus':
       return res.json(currentState);

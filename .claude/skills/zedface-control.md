@@ -22,7 +22,7 @@ Use this skill when:
 ### 1. Set State
 Change the sphere's animation state.
 
-**Allowed states**: `intro`, `idle`, `offline`, `reconnecting`, `listening`, `thinking`, `speaking`, `error`
+**Allowed states**: `intro`, `idle`, `offline`, `reconnecting`, `listening`, `thinking`, `speaking`, `error`, `show`
 
 ```bash
 curl -X POST http://localhost:3001/api/control \
@@ -72,7 +72,102 @@ curl -X POST http://localhost:3001/api/control \
   -d '{"action": "applyPreset", "preset": "energetic"}'
 ```
 
-### 5. Get Current Status
+### 5. Show Content (展示态)
+Display text, emoji, image, or shape using particles.
+
+**Supported types**: `text`, `emoji`, `image`, `shape`
+
+#### Show Text
+```bash
+curl -X POST http://localhost:3001/api/control \
+  -H "Authorization: Bearer zedface-control-2024" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "show",
+    "type": "text",
+    "content": "Hello",
+    "options": {
+      "fontSize": 100,
+      "fontFamily": "Arial"
+    }
+  }'
+```
+
+#### Show Emoji
+```bash
+curl -X POST http://localhost:3001/api/control \
+  -H "Authorization: Bearer zedface-control-2024" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "show",
+    "type": "emoji",
+    "content": "😀",
+    "options": {
+      "fontSize": 200
+    }
+  }'
+```
+
+#### Show Image (URL)
+```bash
+curl -X POST http://localhost:3001/api/control \
+  -H "Authorization: Bearer zedface-control-2024" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "show",
+    "type": "image",
+    "content": "https://example.com/logo.png",
+    "options": {
+      "width": 300,
+      "height": 300
+    }
+  }'
+```
+
+#### Show Image (Base64)
+```bash
+curl -X POST http://localhost:3001/api/control \
+  -H "Authorization: Bearer zedface-control-2024" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "show",
+    "type": "image",
+    "content": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...",
+    "options": {
+      "width": 300,
+      "height": 300
+    }
+  }'
+```
+
+#### Show Shape
+**Allowed shapes**: `heart`, `star`, `circle`, `triangle`, `square`
+
+```bash
+curl -X POST http://localhost:3001/api/control \
+  -H "Authorization: Bearer zedface-control-2024" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "show",
+    "type": "shape",
+    "content": "heart",
+    "options": {
+      "size": 200
+    }
+  }'
+```
+
+### 6. End Show Mode
+Exit show mode and return to normal state.
+
+```bash
+curl -X POST http://localhost:3001/api/control \
+  -H "Authorization: Bearer zedface-control-2024" \
+  -H "Content-Type: application/json" \
+  -d '{"action": "showEnd"}'
+```
+
+### 7. Get Current Status
 Query the current sphere state and parameters.
 
 ```bash
