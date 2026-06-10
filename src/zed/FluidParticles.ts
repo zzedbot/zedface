@@ -39,7 +39,7 @@ export class FluidParticles {
   private showTargetPositions: Float32Array | null = null
   private isShowMode: boolean = false
   private showTransitionProgress: number = 0
-  private originalPositions: Float32Array | null = null // 保存原始球体位置
+  private isExitingShowMode: boolean = false // 标记是否正在退出展示模式
 
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
@@ -223,30 +223,15 @@ export class FluidParticles {
 
       // 在展示模式下减少旋转
       this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
-    } else if (!this.isShowMode && this.originalPositions && this.particles) {
-      // 退出展示模式，恢复原始球体位置
-      const posAttr = this.particles.geometry.attributes.position
-      const positions = posAttr.array as Float32Array
-
-      const recoverSpeed = 0.03
-      let allRecovered = true
-
-      for (let i = 0; i < positions.length; i++) {
-        const diff = Math.abs(positions[i] - this.originalPositions[i])
-        if (diff > 0.01) {
-          allRecovered = false
-          positions[i] = lerp(positions[i], this.originalPositions[i], recoverSpeed)
-        }
-      }
-      posAttr.needsUpdate = true
-
-      // 恢复完成后清理
-      if (allRecovered) {
-        this.originalPositions = null
-      }
-
-      this.particles.rotation.y = time * this.currentParams.rotationSpeed
     } else if (this.particles) {
+      // 非展示模式：正常球体行为
+      // 如果刚从展示模式退出，重建粒子以匹配当前参数
+      if (this.isExitingShowMode) {
+        console.log('[FluidParticles] Rebuilding particles after show mode')
+        this.isExitingShowMode = false
+        this.createParticles()
+      }
+
       this.particles.rotation.y = time * this.currentParams.rotationSpeed
     }
   }
@@ -294,16 +279,10 @@ export class FluidParticles {
   setShowContent(positions: Float32Array): void {
     console.log('[FluidParticles] Entering show mode with', positions.length / 3, 'points')
 
-    // 保存当前球体位置
-    if (this.particles && !this.originalPositions) {
-      const currentPositions = this.particles.geometry.attributes.position.array as Float32Array
-      this.originalPositions = new Float32Array(currentPositions.length)
-      this.originalPositions.set(currentPositions)
-    }
-
     this.showTargetPositions = positions
     this.isShowMode = true
     this.showTransitionProgress = 0
+    this.isExitingShowMode = false
   }
 
   /**
@@ -313,7 +292,7 @@ export class FluidParticles {
     console.log('[FluidParticles] Exiting show mode')
     this.isShowMode = false
     this.showTransitionProgress = 0
-    // originalPositions 会在过渡完成后清理
+    this.isExitingShowMode = true
   }
 
   /**
