@@ -155,7 +155,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
 
   // show — 展示态：粒子形成文字、图形等展示内容
   show: {
-    particleCount: UNIFIED_PARTICLE_COUNT,
+    particleCount: 12000, // 展示模式使用更多粒子，更精细
     particleSize: 8.0, // 展示模式粒子更小，更精细
     particleSides: 0, // 圆形
     radius: 3.0, // 展示区域大小
