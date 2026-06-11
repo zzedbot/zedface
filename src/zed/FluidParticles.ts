@@ -47,6 +47,7 @@ export class FluidParticles {
   // 监听模式相关（音频环形波器）
   private isListeningMode: boolean = false
   private frequencyData: Uint8Array | null = null
+  private userRotationY: number = 0  // 用户拖动旋转量
 
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
@@ -227,7 +228,7 @@ export class FluidParticles {
         this.showTransitionProgress = 0
       } else {
         // 参数还在过渡中，保持当前状态
-        this.particles.rotation.y = time * this.currentParams.rotationSpeed
+        this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
       }
     }
     // 展示模式处理
@@ -252,7 +253,7 @@ export class FluidParticles {
       posAttr.needsUpdate = true
 
       // 在展示模式下减少旋转
-      this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
+      this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1 + this.userRotationY
     }
     // 监听模式：3D 海胆球频谱
     else if (this.isListeningMode && this.frequencyData && this.particles) {
@@ -318,7 +319,7 @@ export class FluidParticles {
         }
       }
 
-      this.particles.rotation.y = time * this.currentParams.rotationSpeed
+      this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
     }
   }
 
@@ -416,6 +417,13 @@ export class FluidParticles {
   }
 
   /**
+   * 设置用户拖动旋转量（由 ZedAvatar 鼠标事件驱动）
+   */
+  setUserRotation(rotationY: number): void {
+    this.userRotationY = rotationY
+  }
+
+  /**
    * 监听模式：3D 海胆球 — 粒子分布球面，频域驱动径向辐射
    */
   private updateListeningSphere(time: number): void {
@@ -468,7 +476,9 @@ export class FluidParticles {
         const amplitude = this.frequencyData[binIndex] / 255
 
         const hfBoost = 1.0 + (binIndex / binCount) * 2.0
-        const compensated = Math.min(amplitude * hfBoost, 1.0)
+        // 低频增幅：底部 (bin 0-15) 额外拉长尾巴
+        const lfEmphasis = 1.0 + Math.max(0, 1.0 - binIndex / 16) * 3.0
+        const compensated = Math.min(amplitude * hfBoost * lfEmphasis, 1.0)
 
         const t = r1
         const radius = baseRadius + t * compensated * maxSpikeHeight
@@ -555,8 +565,8 @@ export class FluidParticles {
     posAttr.needsUpdate = true
     normalAttr.needsUpdate = true
 
-    // 整体缓慢旋转（使用 listening 预设的 rotationSpeed）
-    this.particles.rotation.y = time * this.currentParams.rotationSpeed
+    // 整体缓慢旋转 + 用户拖动旋转
+    this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
   }
 
   dispose() {

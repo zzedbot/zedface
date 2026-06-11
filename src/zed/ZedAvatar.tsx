@@ -33,6 +33,12 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
   const audioIntensityRef = useRef(audioIntensity)
   const frequencyDataRef = useRef<Uint8Array | null>(null)
 
+  // 鼠标拖动旋转
+  const isDraggingRef = useRef(false)
+  const lastMouseXRef = useRef(0)
+  const dragRotationRef = useRef(0)  // 累计拖动旋转量
+  const dragVelocityRef = useRef(0)  // 拖动速度（用于惯性）
+
   // Keep refs in sync with props
   useEffect(() => {
     audioIntensityRef.current = audioIntensity
@@ -137,11 +143,46 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
     const animate = () => {
       const elapsedTime = clock.getElapsedTime()
       particles.updateFrequencyData(frequencyDataRef.current)
+      particles.setUserRotation(dragRotationRef.current)
       particles.update(elapsedTime, audioIntensityRef.current)
+
+      // 应用拖动旋转（带惯性衰减）
+      if (!isDraggingRef.current && Math.abs(dragVelocityRef.current) > 0.0001) {
+        dragRotationRef.current += dragVelocityRef.current
+        dragVelocityRef.current *= 0.95  // 惯性衰减
+      }
+
       renderer.render(scene, camera)
       animationRef.current = requestAnimationFrame(animate)
     }
     animate()
+
+    // 鼠标拖动旋转处理
+    const canvas = renderer.domElement
+    const handleMouseDown = (e: MouseEvent) => {
+      isDraggingRef.current = true
+      lastMouseXRef.current = e.clientX
+      dragVelocityRef.current = 0
+      canvas.style.cursor = 'grabbing'
+    }
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRef.current) return
+      const deltaX = e.clientX - lastMouseXRef.current
+      lastMouseXRef.current = e.clientX
+
+      const rotationDelta = deltaX * 0.005
+      dragRotationRef.current += rotationDelta
+      dragVelocityRef.current = rotationDelta
+    }
+    const handleMouseUp = () => {
+      isDraggingRef.current = false
+      canvas.style.cursor = 'grab'
+    }
+
+    canvas.style.cursor = 'grab'
+    canvas.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
 
     // Resize handler
     const handleResize = () => {
@@ -156,6 +197,9 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      canvas.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
