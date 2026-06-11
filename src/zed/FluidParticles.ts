@@ -254,7 +254,7 @@ export class FluidParticles {
       // 在展示模式下减少旋转
       this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
     }
-    // 监听模式：音频环形波器
+    // 监听模式：3D 海胆球频谱
     else if (this.isListeningMode && this.frequencyData && this.particles) {
       this.updateListeningSphere(time)
     }
@@ -431,8 +431,8 @@ export class FluidParticles {
     const baseRadius = this.currentParams.radius
     const maxSpikeHeight = 1.0
 
-    // 70% 粒子形成海胆球表面，30% 内部散落
-    const barCount = Math.floor(count * 0.7)
+    // 85% 粒子形成海胆球表面，15% 内核
+    const barCount = Math.floor(count * 0.85)
     const innerCount = count - barCount
 
     // Fibonacci 球面均匀分布常量
@@ -443,6 +443,12 @@ export class FluidParticles {
     for (let b = 0; b < binCount; b++) totalAmp += this.frequencyData[b]
     const avgAmp = totalAmp / binCount / 255
 
+    // 禁用 shader 的音频缩放（只在内核 CPU 端应用）
+    this.uniforms.uAudioIntensity.value = 0
+
+    const normalAttr = this.particles.geometry.attributes.normal
+    const normals = normalAttr.array as Float32Array
+
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
       const r1 = randomness[i]
@@ -451,58 +457,94 @@ export class FluidParticles {
       let targetX: number, targetY: number, targetZ: number
 
       if (i < barCount) {
-        // === 球面频谱粒子 ===
-        // Fibonacci 球面分布
-        const phi = Math.acos(1 - 2 * (i + 0.5) / barCount)  // 极角 0(顶) ~ π(底)
-        const theta = goldenAngle * i                          // 方位角
+        // === 外层频谱刺 (严格频域驱动，无 shader 效果) ===
+        const phi = Math.acos(1 - 2 * (i + 0.5) / barCount)
+        const theta = goldenAngle * i
 
-        // 频率→纬度映射：低频(底 φ=π) → 高频(顶 φ=0)
         const binIndex = Math.min(
           Math.floor((Math.PI - phi) / Math.PI * binCount),
           binCount - 1
         )
         const amplitude = this.frequencyData[binIndex] / 255
 
-        // 高频补偿
         const hfBoost = 1.0 + (binIndex / binCount) * 2.0
         const compensated = Math.min(amplitude * hfBoost, 1.0)
 
-        // 径向：基础球面 + 频域驱动延伸
-        const t = r1  // 粒子在刺上的位置 (0=球面, 1=刺尖)
+        const t = r1
         const radius = baseRadius + t * compensated * maxSpikeHeight
 
-        // 球坐标→笛卡尔 (Y 轴朝上)
         const sinPhi = Math.sin(phi)
         targetX = radius * sinPhi * Math.cos(theta)
         targetY = radius * Math.cos(phi)
         targetZ = radius * sinPhi * Math.sin(theta)
+
+        // 清零法线：屏蔽 shader 的噪声/呼吸/音频缩放效果
+        normals[i3] = 0
+        normals[i3 + 1] = 0
+        normals[i3 + 2] = 0
       } else {
-        // === 内部球体粒子 ===
+        // === 内核球体 (原始倾听效果：噪声 + 呼吸 + 音频缩放，CPU 端实现) ===
         const innerIdx = i - barCount
-        // Fibonacci 球面分布（偏移索引，避免与外层重合）
         const phi = Math.acos(1 - 2 * (innerIdx + 0.5) / innerCount)
         const theta = goldenAngle * (innerIdx + barCount)
 
-        // 基础半径内分布
-        const maxR = baseRadius * 0.7
-        const baseR = Math.cbrt(r2) * maxR  // cbrt 保证体积均匀
+        const maxR = baseRadius * 0.3
+        const baseR = Math.cbrt(r2) * maxR
 
-        // 呼吸
-        const breath = Math.sin(time * 1.2 + r2 * Math.PI * 2) * 0.08
-
-        // 噪声扰动（3D）
-        const nr = Math.sin(time * 0.8 + r1 * 12.56) * 0.03
-          + Math.sin(time * 1.7 + r2 * 9.42) * 0.02
-
-        // 音频响应
-        const audioPush = avgAmp * 0.1
-
-        const radius = Math.min(baseR * (1.0 + breath + audioPush) + nr, baseRadius * 0.9)
-
+        // 径向方向（法线）
         const sinPhi = Math.sin(phi)
-        targetX = radius * sinPhi * Math.cos(theta)
-        targetY = radius * Math.cos(phi)
-        targetZ = radius * sinPhi * Math.sin(theta)
+        // 内核独立旋转（比外层快）
+        const innerRotSpeed = 0.3
+        const rotatedTheta = theta + time * innerRotSpeed
+        const sinRT = Math.sin(rotatedTheta)
+        const cosRT = Math.cos(rotatedTheta)
+        const nx = sinPhi * cosRT
+        const ny = Math.cos(phi)
+        const nz = sinPhi * sinRT
+
+        // 基础位置
+        let cx = baseR * nx
+        let cy = baseR * ny
+        let cz = baseR * nz
+
+        // 噪声扰动（更快的动画速度）
+        const noiseVal = Math.sin(cx * 2.0 + time * 1.6) *
+                         Math.cos(cy * 2.0 + time * 0.96) *
+                         Math.sin(cz * 2.0 + time * 1.92)
+        const noiseDisplace = noiseVal * 0.25 * (1.0 + avgAmp * 1.5)
+        cx += nx * noiseDisplace
+        cy += ny * noiseDisplace
+        cz += nz * noiseDisplace
+
+        // 呼吸脉动（更快）
+        const breath = Math.sin(time * 3.0) * 0.08 + 1.0
+        cx *= breath
+        cy *= breath
+        cz *= breath
+
+        // 音频缩放（轻微）
+        const audioScale = 1.0 + avgAmp * 1.5 * 0.3
+        cx *= audioScale
+        cy *= audioScale
+        cz *= audioScale
+
+        // 限制不超出外层刺的基础半径
+        const dist = Math.sqrt(cx * cx + cy * cy + cz * cz)
+        if (dist > baseRadius * 0.9) {
+          const scale = (baseRadius * 0.9) / dist
+          cx *= scale
+          cy *= scale
+          cz *= scale
+        }
+
+        // 法线保留（虽然 shader 不再使用，但保持一致）
+        normals[i3] = nx
+        normals[i3 + 1] = ny
+        normals[i3 + 2] = nz
+
+        targetX = cx
+        targetY = cy
+        targetZ = cz
       }
 
       // lerp 平滑过渡
@@ -511,9 +553,10 @@ export class FluidParticles {
       positions[i3 + 2] = lerp(positions[i3 + 2], targetZ, 0.35)
     }
     posAttr.needsUpdate = true
+    normalAttr.needsUpdate = true
 
-    // 球体缓慢旋转，展示 3D 效果
-    this.particles.rotation.y = time * 0.2
+    // 整体缓慢旋转（使用 listening 预设的 rotationSpeed）
+    this.particles.rotation.y = time * this.currentParams.rotationSpeed
   }
 
   dispose() {

@@ -32,7 +32,10 @@
       "Bash(xargs kill *)",
       "Bash(netstat -ano)",
       "Bash(taskkill /F /PID 29920)",
-      "PowerShell(Get-NetTCPConnection *)"
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(git stash *)",
+      "Bash(tasklist)",
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")"
     ]
   }
 }
