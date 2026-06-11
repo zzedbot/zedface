@@ -256,7 +256,7 @@ export class FluidParticles {
     }
     // 监听模式：音频环形波器
     else if (this.isListeningMode && this.frequencyData && this.particles) {
-      this.updateListeningRing(time)
+      this.updateListeningSphere(time)
     }
     else if (this.particles) {
       // 非展示模式：正常球体行为
@@ -416,9 +416,9 @@ export class FluidParticles {
   }
 
   /**
-   * 监听模式：将粒子排列为环，频域数据驱动半径变形
+   * 监听模式：3D 海胆球 — 粒子分布球面，频域驱动径向辐射
    */
-  private updateListeningRing(time: number): void {
+  private updateListeningSphere(time: number): void {
     if (!this.particles || !this.frequencyData) return
 
     const posAttr = this.particles.geometry.attributes.position
@@ -429,15 +429,16 @@ export class FluidParticles {
     const count = this.currentParams.particleCount
     const binCount = this.frequencyData.length
     const baseRadius = this.currentParams.radius
-    const maxSpikeHeight = 3.0
+    const maxSpikeHeight = 1.0
 
-    // 70% 粒子用于频谱柱，30% 用于内部散落
+    // 70% 粒子形成海胆球表面，30% 内部散落
     const barCount = Math.floor(count * 0.7)
+    const innerCount = count - barCount
 
-    // 线性等分角度：每根柱子等宽
-    const segmentAngle = Math.PI * 2 / binCount
+    // Fibonacci 球面均匀分布常量
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5))
 
-    // 计算整体音量（内部粒子响应）
+    // 整体音量
     let totalAmp = 0
     for (let b = 0; b < binCount; b++) totalAmp += this.frequencyData[b]
     const avgAmp = totalAmp / binCount / 255
@@ -447,80 +448,72 @@ export class FluidParticles {
       const r1 = randomness[i]
       const r2 = randomness[(i * 7 + 3) % count]
 
-      let targetX: number, targetY: number
+      let targetX: number, targetY: number, targetZ: number
 
       if (i < barCount) {
-        // === 频谱柱粒子 ===
-        // 每个频段分两段：柱子部分 (barRatio) + 间隙 (1-barRatio)
-        // 粒子只填充柱子部分，跳过间隙，形成离散柱状
-        const barRatio = 0.7
-        const segment = Math.floor(i / barCount * binCount)
-        const segmentStart = Math.floor(segment * barCount / binCount)
-        const segmentEnd = Math.floor((segment + 1) * barCount / binCount)
-        const localIdx = i - segmentStart
-        const segmentParticleCount = segmentEnd - segmentStart
-        const barPosition = segmentParticleCount > 1
-          ? localIdx / (segmentParticleCount - 1)
-          : 0.5
+        // === 球面频谱粒子 ===
+        // Fibonacci 球面分布
+        const phi = Math.acos(1 - 2 * (i + 0.5) / barCount)  // 极角 0(顶) ~ π(底)
+        const theta = goldenAngle * i                          // 方位角
 
-        const clampedBin = Math.min(segment, binCount - 1)
-        const amplitude = this.frequencyData[clampedBin] / 255
+        // 频率→纬度映射：低频(底 φ=π) → 高频(顶 φ=0)
+        const binIndex = Math.min(
+          Math.floor((Math.PI - phi) / Math.PI * binCount),
+          binCount - 1
+        )
+        const amplitude = this.frequencyData[binIndex] / 255
 
-        // 高频补偿：语音高频能量弱，给高频柱更多增益
-        const hfBoost = 1.0 + (clampedBin / binCount) * 2.0
+        // 高频补偿
+        const hfBoost = 1.0 + (binIndex / binCount) * 2.0
         const compensated = Math.min(amplitude * hfBoost, 1.0)
 
-        // 频段角度范围（线性等分）
-        const segStart = clampedBin * segmentAngle
-        const segEnd = (clampedBin + 1) * segmentAngle
-
-        // 只使用片段的前 barRatio 部分作为柱子
-        const angle = segStart + barPosition * (segEnd - segStart) * barRatio
-
-        // 粒子在柱内的径向位置
-        const t = r1  // 用 r1 做径向分布
+        // 径向：基础球面 + 频域驱动延伸
+        const t = r1  // 粒子在刺上的位置 (0=球面, 1=刺尖)
         const radius = baseRadius + t * compensated * maxSpikeHeight
 
-        targetX = radius * Math.cos(angle)
-        targetY = radius * Math.sin(angle)
+        // 球坐标→笛卡尔 (Y 轴朝上)
+        const sinPhi = Math.sin(phi)
+        targetX = radius * sinPhi * Math.cos(theta)
+        targetY = radius * Math.cos(phi)
+        targetZ = radius * sinPhi * Math.sin(theta)
       } else {
-        // === 内部散落粒子 ===
+        // === 内部球体粒子 ===
         const innerIdx = i - barCount
-        // 内部粒子均匀分布在圆环内部
-        const t = innerIdx / (count - barCount)
-        const angle = t * Math.PI * 2 + (r1 - 0.5) * 0.05
+        // Fibonacci 球面分布（偏移索引，避免与外层重合）
+        const phi = Math.acos(1 - 2 * (innerIdx + 0.5) / innerCount)
+        const theta = goldenAngle * (innerIdx + barCount)
 
         // 基础半径内分布
-        const maxR = baseRadius * 0.8
-        const baseR = Math.sqrt(r2) * maxR
+        const maxR = baseRadius * 0.7
+        const baseR = Math.cbrt(r2) * maxR  // cbrt 保证体积均匀
 
-        // 呼吸（温和）
-        const breath = Math.sin(time * 1.2 + r2 * Math.PI * 2) * 0.1
+        // 呼吸
+        const breath = Math.sin(time * 1.2 + r2 * Math.PI * 2) * 0.08
 
-        // 噪声（轻微扰动）
-        const noiseX = Math.sin(time * 0.8 + r1 * 12.56) * 0.04
+        // 噪声扰动（3D）
+        const nr = Math.sin(time * 0.8 + r1 * 12.56) * 0.03
           + Math.sin(time * 1.7 + r2 * 9.42) * 0.02
-        const noiseY = Math.cos(time * 0.9 + r2 * 11.0) * 0.04
-          + Math.cos(time * 1.5 + r1 * 8.0) * 0.02
 
         // 音频响应
-        const audioPush = avgAmp * 0.15
+        const audioPush = avgAmp * 0.1
 
-        let radius = baseR * (1.0 + breath + audioPush)
+        const radius = Math.min(baseR * (1.0 + breath + audioPush) + nr, baseRadius * 0.9)
 
-        // 限制不超出圆环半径
-        radius = Math.min(radius, baseRadius * 0.95)
-
-        targetX = radius * Math.cos(angle) + noiseX
-        targetY = radius * Math.sin(angle) + noiseY
+        const sinPhi = Math.sin(phi)
+        targetX = radius * sinPhi * Math.cos(theta)
+        targetY = radius * Math.cos(phi)
+        targetZ = radius * sinPhi * Math.sin(theta)
       }
 
       // lerp 平滑过渡
       positions[i3] = lerp(positions[i3], targetX, 0.35)
       positions[i3 + 1] = lerp(positions[i3 + 1], targetY, 0.35)
-      positions[i3 + 2] = lerp(positions[i3 + 2], 0, 0.35)
+      positions[i3 + 2] = lerp(positions[i3 + 2], targetZ, 0.35)
     }
     posAttr.needsUpdate = true
+
+    // 球体缓慢旋转，展示 3D 效果
+    this.particles.rotation.y = time * 0.2
   }
 
   dispose() {
