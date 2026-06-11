@@ -433,7 +433,9 @@ export class FluidParticles {
 
     // 70% 粒子用于频谱柱，30% 用于内部散落
     const barCount = Math.floor(count * 0.7)
-    const particlesPerBin = barCount / binCount
+
+    // 线性等分角度：每根柱子等宽
+    const segmentAngle = Math.PI * 2 / binCount
 
     // 计算整体音量（内部粒子响应）
     let totalAmp = 0
@@ -449,29 +451,48 @@ export class FluidParticles {
 
       if (i < barCount) {
         // === 频谱柱粒子 ===
-        const binIndex = Math.floor(i / particlesPerBin)
-        const clampedBin = Math.min(binIndex, binCount - 1)
+        // 每个频段分两段：柱子部分 (barRatio) + 间隙 (1-barRatio)
+        // 粒子只填充柱子部分，跳过间隙，形成离散柱状
+        const barRatio = 0.7
+        const segment = Math.floor(i / barCount * binCount)
+        const segmentStart = Math.floor(segment * barCount / binCount)
+        const segmentEnd = Math.floor((segment + 1) * barCount / binCount)
+        const localIdx = i - segmentStart
+        const segmentParticleCount = segmentEnd - segmentStart
+        const barPosition = segmentParticleCount > 1
+          ? localIdx / (segmentParticleCount - 1)
+          : 0.5
+
+        const clampedBin = Math.min(segment, binCount - 1)
         const amplitude = this.frequencyData[clampedBin] / 255
-        const binAngle = ((clampedBin + 0.5) / binCount) * Math.PI * 2
 
-        // 粒子在柱内的径向位置 (0=基础环, 1=柱顶)
-        const localIndex = i - binIndex * particlesPerBin
-        const t = localIndex / particlesPerBin
-        const radius = baseRadius + t * amplitude * maxSpikeHeight
+        // 高频补偿：语音高频能量弱，给高频柱更多增益
+        const hfBoost = 1.0 + (clampedBin / binCount) * 2.0
+        const compensated = Math.min(amplitude * hfBoost, 1.0)
 
-        // 柱子角宽度
-        const angle = binAngle + (r1 - 0.5) * 0.02
+        // 频段角度范围（线性等分）
+        const segStart = clampedBin * segmentAngle
+        const segEnd = (clampedBin + 1) * segmentAngle
+
+        // 只使用片段的前 barRatio 部分作为柱子
+        const angle = segStart + barPosition * (segEnd - segStart) * barRatio
+
+        // 粒子在柱内的径向位置
+        const t = r1  // 用 r1 做径向分布
+        const radius = baseRadius + t * compensated * maxSpikeHeight
+
         targetX = radius * Math.cos(angle)
         targetY = radius * Math.sin(angle)
       } else {
         // === 内部散落粒子 ===
         const innerIdx = i - barCount
-        const goldenAngle = Math.PI * (3 - Math.sqrt(5))
-        const angle = innerIdx * goldenAngle
+        // 内部粒子均匀分布在圆环内部
+        const t = innerIdx / (count - barCount)
+        const angle = t * Math.PI * 2 + (r1 - 0.5) * 0.05
 
         // 基础半径内分布
         const maxR = baseRadius * 0.8
-        const baseR = Math.sqrt(r1) * maxR
+        const baseR = Math.sqrt(r2) * maxR
 
         // 呼吸（温和）
         const breath = Math.sin(time * 1.2 + r2 * Math.PI * 2) * 0.1
