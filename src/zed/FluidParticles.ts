@@ -10,6 +10,22 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
 
+// easeOutCubic 缓动函数：先快后慢
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+// 动态插值：根据距离动态调整速度，实现先快后慢的效果
+function dynamicLerp(current: number, target: number, baseSpeed: number = 0.1): number {
+  const distance = Math.abs(target - current)
+  // 距离越大，速度越快；距离越小，速度越慢
+  // 使用平方根函数，使得大距离时速度快，小距离时速度慢
+  const dynamicSpeed = baseSpeed * Math.sqrt(distance + 1)
+  // 使用缓动函数，使得过渡更平滑
+  const easedSpeed = easeOutCubic(Math.min(dynamicSpeed, 1))
+  return lerp(current, target, easedSpeed)
+}
+
 // 十六进制颜色转 RGB
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
@@ -29,9 +45,6 @@ export class FluidParticles {
   // 目标参数和当前插值参数
   private targetParams: FluidParams
   private currentParams: FluidParams
-
-  // 插值速度（每帧接近目标的比例）
-  private lerpSpeed = 0.03
 
   // 粒子方向向量（用于半径变化时的平滑过渡）
   private particleDirections: Float32Array | null = null
@@ -137,22 +150,20 @@ export class FluidParticles {
     this.uniforms.uTime.value = time
     this.uniforms.uAudioIntensity.value = audioIntensity
 
-    // 插值当前参数向目标参数靠近
-    const t = this.lerpSpeed
+    // 使用动态插值：先快后慢的非线性过渡
+    // 对于关键参数（如半径），使用更大的基础速度
+    this.currentParams.radius = dynamicLerp(this.currentParams.radius, this.targetParams.radius, 0.15)
+    this.currentParams.particleSize = dynamicLerp(this.currentParams.particleSize, this.targetParams.particleSize, 0.12)
 
-    this.currentParams.animSpeed = lerp(this.currentParams.animSpeed, this.targetParams.animSpeed, t)
-    this.currentParams.breathSpeed = lerp(this.currentParams.breathSpeed, this.targetParams.breathSpeed, t)
-    this.currentParams.breathAmplitude = lerp(this.currentParams.breathAmplitude, this.targetParams.breathAmplitude, t)
-    this.currentParams.noiseAmplitude = lerp(this.currentParams.noiseAmplitude, this.targetParams.noiseAmplitude, t)
-    this.currentParams.rotationSpeed = lerp(this.currentParams.rotationSpeed, this.targetParams.rotationSpeed, t)
-    this.currentParams.colorMixSpeed = lerp(this.currentParams.colorMixSpeed, this.targetParams.colorMixSpeed, t)
-    this.currentParams.glowIntensity = lerp(this.currentParams.glowIntensity, this.targetParams.glowIntensity, t)
-    this.currentParams.alphaBase = lerp(this.currentParams.alphaBase, this.targetParams.alphaBase, t)
-    this.currentParams.particleSize = lerp(this.currentParams.particleSize, this.targetParams.particleSize, t)
-
-    // 半径也进行插值
-    const radiusChanged = Math.abs(this.currentParams.radius - this.targetParams.radius) > 0.01
-    this.currentParams.radius = lerp(this.currentParams.radius, this.targetParams.radius, t)
+    // 其他参数使用标准速度
+    this.currentParams.animSpeed = dynamicLerp(this.currentParams.animSpeed, this.targetParams.animSpeed, 0.08)
+    this.currentParams.breathSpeed = dynamicLerp(this.currentParams.breathSpeed, this.targetParams.breathSpeed, 0.08)
+    this.currentParams.breathAmplitude = dynamicLerp(this.currentParams.breathAmplitude, this.targetParams.breathAmplitude, 0.08)
+    this.currentParams.noiseAmplitude = dynamicLerp(this.currentParams.noiseAmplitude, this.targetParams.noiseAmplitude, 0.08)
+    this.currentParams.rotationSpeed = dynamicLerp(this.currentParams.rotationSpeed, this.targetParams.rotationSpeed, 0.08)
+    this.currentParams.colorMixSpeed = dynamicLerp(this.currentParams.colorMixSpeed, this.targetParams.colorMixSpeed, 0.08)
+    this.currentParams.glowIntensity = dynamicLerp(this.currentParams.glowIntensity, this.targetParams.glowIntensity, 0.08)
+    this.currentParams.alphaBase = dynamicLerp(this.currentParams.alphaBase, this.targetParams.alphaBase, 0.08)
 
     // 颜色参数直接更新（不插值）
     this.currentParams.primaryColor = this.targetParams.primaryColor
@@ -161,6 +172,7 @@ export class FluidParticles {
     // 对于需要重建的属性（粒子数量、形状），使用阈值判断是否更新
     const countDiff = Math.abs(this.currentParams.particleCount - this.targetParams.particleCount)
     const sidesDiff = Math.abs(this.currentParams.particleSides - this.targetParams.particleSides)
+    const radiusChanged = Math.abs(this.currentParams.radius - this.targetParams.radius) > 0.01
 
     // 如果粒子数量或形状差异足够大，立即重建
     if (countDiff > 100 || sidesDiff > 0.5) {
