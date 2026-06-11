@@ -60,9 +60,17 @@ function App() {
 
   const handleShowEnd = useCallback(() => {
     console.log('[App] Control: showEnd')
+    // 先执行取消逻辑，取消文字展示
     setShowContent(null)
-    setDebugState('idle')
-    setFluidParams(statePresets.idle)
+
+    // 等待位置过渡完成后，再切换到空闲状态
+    // 过渡使用 lerp 指数衰减：transitionSpeed=0.1 时约 30 帧(0.5s)到达 96%
+    // 参数过渡 + 位置过渡总计约 1-1.5 秒，留 2 秒安全余量
+    setTimeout(() => {
+      console.log('[App] Control: showEnd - switching to idle')
+      setDebugState('idle')
+      setFluidParams(statePresets.idle)
+    }, 2000)
   }, [])
 
   const handleCancelShow = useCallback(() => {
