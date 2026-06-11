@@ -18,6 +18,9 @@ export interface FluidParams {
   noiseAmplitude: number
   rotationSpeed: number
 
+  // Transition
+  transitionSpeed: number // 状态切换过渡速度 (0.01-0.3)
+
   // Visual
   colorMixSpeed: number
   glowIntensity: number
@@ -36,6 +39,7 @@ export const defaultFluidParams: FluidParams = {
   breathAmplitude: 0.15,
   noiseAmplitude: 0.5,
   rotationSpeed: 0.15,
+  transitionSpeed: 0.08, // 默认过渡速度
   colorMixSpeed: 0.5,
   glowIntensity: 0.5,
   alphaBase: 0.6,
@@ -519,6 +523,20 @@ export function ControlPanel({
               style={sliderStyle}
             />
             <span style={valueStyle}>{params.rotationSpeed.toFixed(2)}</span>
+          </div>
+
+          <div style={rowStyle}>
+            <span style={labelStyle}>过渡速度</span>
+            <input
+              type="range"
+              min="0.01"
+              max="0.3"
+              step="0.01"
+              value={params.transitionSpeed}
+              onChange={(e) => handleChange('transitionSpeed', Number(e.target.value))}
+              style={sliderStyle}
+            />
+            <span style={valueStyle}>{params.transitionSpeed.toFixed(2)}</span>
           </div>
         </div>
 

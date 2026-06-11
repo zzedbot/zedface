@@ -151,19 +151,22 @@ export class FluidParticles {
     this.uniforms.uAudioIntensity.value = audioIntensity
 
     // 使用动态插值：先快后慢的非线性过渡
+    // 使用用户控制的过渡速度
+    const transitionSpeed = this.targetParams.transitionSpeed || 0.08
+
     // 对于关键参数（如半径），使用更大的基础速度
-    this.currentParams.radius = dynamicLerp(this.currentParams.radius, this.targetParams.radius, 0.15)
-    this.currentParams.particleSize = dynamicLerp(this.currentParams.particleSize, this.targetParams.particleSize, 0.12)
+    this.currentParams.radius = dynamicLerp(this.currentParams.radius, this.targetParams.radius, transitionSpeed * 1.5)
+    this.currentParams.particleSize = dynamicLerp(this.currentParams.particleSize, this.targetParams.particleSize, transitionSpeed * 1.2)
 
     // 其他参数使用标准速度
-    this.currentParams.animSpeed = dynamicLerp(this.currentParams.animSpeed, this.targetParams.animSpeed, 0.08)
-    this.currentParams.breathSpeed = dynamicLerp(this.currentParams.breathSpeed, this.targetParams.breathSpeed, 0.08)
-    this.currentParams.breathAmplitude = dynamicLerp(this.currentParams.breathAmplitude, this.targetParams.breathAmplitude, 0.08)
-    this.currentParams.noiseAmplitude = dynamicLerp(this.currentParams.noiseAmplitude, this.targetParams.noiseAmplitude, 0.08)
-    this.currentParams.rotationSpeed = dynamicLerp(this.currentParams.rotationSpeed, this.targetParams.rotationSpeed, 0.08)
-    this.currentParams.colorMixSpeed = dynamicLerp(this.currentParams.colorMixSpeed, this.targetParams.colorMixSpeed, 0.08)
-    this.currentParams.glowIntensity = dynamicLerp(this.currentParams.glowIntensity, this.targetParams.glowIntensity, 0.08)
-    this.currentParams.alphaBase = dynamicLerp(this.currentParams.alphaBase, this.targetParams.alphaBase, 0.08)
+    this.currentParams.animSpeed = dynamicLerp(this.currentParams.animSpeed, this.targetParams.animSpeed, transitionSpeed)
+    this.currentParams.breathSpeed = dynamicLerp(this.currentParams.breathSpeed, this.targetParams.breathSpeed, transitionSpeed)
+    this.currentParams.breathAmplitude = dynamicLerp(this.currentParams.breathAmplitude, this.targetParams.breathAmplitude, transitionSpeed)
+    this.currentParams.noiseAmplitude = dynamicLerp(this.currentParams.noiseAmplitude, this.targetParams.noiseAmplitude, transitionSpeed)
+    this.currentParams.rotationSpeed = dynamicLerp(this.currentParams.rotationSpeed, this.targetParams.rotationSpeed, transitionSpeed)
+    this.currentParams.colorMixSpeed = dynamicLerp(this.currentParams.colorMixSpeed, this.targetParams.colorMixSpeed, transitionSpeed)
+    this.currentParams.glowIntensity = dynamicLerp(this.currentParams.glowIntensity, this.targetParams.glowIntensity, transitionSpeed)
+    this.currentParams.alphaBase = dynamicLerp(this.currentParams.alphaBase, this.targetParams.alphaBase, transitionSpeed)
 
     // 颜色参数直接更新（不插值）
     this.currentParams.primaryColor = this.targetParams.primaryColor

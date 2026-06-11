@@ -20,6 +20,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 0.5,
     breathAmplitude: 0.05,
     rotationSpeed: 0.08,
+    transitionSpeed: 0.12, // 快速过渡
     colorMixSpeed: 0.3,
     glowIntensity: 0.4,
     alphaBase: 0.5,
@@ -38,6 +39,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 0.8,
     breathAmplitude: 0.1,
     rotationSpeed: 0.1,
+    transitionSpeed: 0.08, // 标准过渡
     colorMixSpeed: 0.3,
     glowIntensity: 0.5,
     alphaBase: 0.6,
@@ -56,6 +58,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 0.3,
     breathAmplitude: 0.02,
     rotationSpeed: 0.3,
+    transitionSpeed: 0.08, // 标准过渡
     colorMixSpeed: 0.1,
     glowIntensity: 0.5,
     alphaBase: 1.0,
@@ -74,6 +77,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 1.2,
     breathAmplitude: 0.15,
     rotationSpeed: 0.2,
+    transitionSpeed: 0.1, // 较快过渡
     colorMixSpeed: 0.8,
     glowIntensity: 0.5,
     alphaBase: 0.6,
@@ -92,6 +96,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 1.5,
     breathAmplitude: 0.2,
     rotationSpeed: 0.05,
+    transitionSpeed: 0.08, // 标准过渡
     colorMixSpeed: 0.5,
     glowIntensity: 0.6,
     alphaBase: 0.7,
@@ -110,6 +115,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 2.0,
     breathAmplitude: 0.05,
     rotationSpeed: 0.3,
+    transitionSpeed: 0.1, // 较快过渡
     colorMixSpeed: 2.0,
     glowIntensity: 0.8,
     alphaBase: 0.8,
@@ -128,6 +134,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 1.0,
     breathAmplitude: 0.15,
     rotationSpeed: 0.08,
+    transitionSpeed: 0.08, // 标准过渡
     colorMixSpeed: 0.8,
     glowIntensity: 0.7,
     alphaBase: 0.9,
@@ -146,6 +153,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 0.5,
     breathAmplitude: 0,
     rotationSpeed: 0.5,
+    transitionSpeed: 0.12, // 快速过渡
     colorMixSpeed: 3.0,
     glowIntensity: 0.9,
     alphaBase: 0.5,
@@ -164,6 +172,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     breathSpeed: 0.3,
     breathAmplitude: 0.02,
     rotationSpeed: 0, // 展示模式下默认不旋转
+    transitionSpeed: 0.1, // 较快过渡
     colorMixSpeed: 0.2,
     glowIntensity: 0.6,
     alphaBase: 0.8,
