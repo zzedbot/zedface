@@ -235,14 +235,15 @@ export class FluidParticles {
       const positions = posAttr.array as Float32Array
 
       // 粒子向目标位置过渡
-      const transitionSpeed = 0.05
+      // 使用用户控制的过渡速度（与参数过渡速度相同）
+      const positionTransitionSpeed = this.targetParams.transitionSpeed || 0.08
       for (let i = 0; i < this.currentParams.particleCount; i++) {
         const i3 = i * 3
         const targetIndex = (i % (this.showTargetPositions.length / 3)) * 3
 
-        positions[i3] = lerp(positions[i3], this.showTargetPositions[targetIndex], transitionSpeed)
-        positions[i3 + 1] = lerp(positions[i3 + 1], this.showTargetPositions[targetIndex + 1], transitionSpeed)
-        positions[i3 + 2] = lerp(positions[i3 + 2], this.showTargetPositions[targetIndex + 2], transitionSpeed)
+        positions[i3] = lerp(positions[i3], this.showTargetPositions[targetIndex], positionTransitionSpeed)
+        positions[i3 + 1] = lerp(positions[i3 + 1], this.showTargetPositions[targetIndex + 1], positionTransitionSpeed)
+        positions[i3 + 2] = lerp(positions[i3 + 2], this.showTargetPositions[targetIndex + 2], positionTransitionSpeed)
       }
       posAttr.needsUpdate = true
 
@@ -278,15 +279,16 @@ export class FluidParticles {
           // 粒子向球体目标位置过渡
           const posAttr = this.particles.geometry.attributes.position
           const positions = posAttr.array as Float32Array
-          const transitionSpeed = 0.05
+          // 使用用户控制的过渡速度（与参数过渡速度相同）
+          const positionTransitionSpeed = this.targetParams.transitionSpeed || 0.08
           let allTransitioned = true
 
           for (let i = 0; i < this.currentParams.particleCount; i++) {
             const i3 = i * 3
 
-            positions[i3] = lerp(positions[i3], this.sphereTargetPositions[i3], transitionSpeed)
-            positions[i3 + 1] = lerp(positions[i3 + 1], this.sphereTargetPositions[i3 + 1], transitionSpeed)
-            positions[i3 + 2] = lerp(positions[i3 + 2], this.sphereTargetPositions[i3 + 2], transitionSpeed)
+            positions[i3] = lerp(positions[i3], this.sphereTargetPositions[i3], positionTransitionSpeed)
+            positions[i3 + 1] = lerp(positions[i3 + 1], this.sphereTargetPositions[i3 + 1], positionTransitionSpeed)
+            positions[i3 + 2] = lerp(positions[i3 + 2], this.sphereTargetPositions[i3 + 2], positionTransitionSpeed)
 
             // 检查是否所有粒子都已过渡完成
             const dx = positions[i3] - this.sphereTargetPositions[i3]
