@@ -44,6 +44,10 @@ export class FluidParticles {
   private isEnteringShowMode: boolean = false
   private pendingShowPositions: Float32Array | null = null
 
+  // 监听模式相关（音频环形波器）
+  private isListeningMode: boolean = false
+  private frequencyData: Uint8Array | null = null
+
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
     this.targetParams = { ...params }
@@ -249,7 +253,12 @@ export class FluidParticles {
 
       // 在展示模式下减少旋转
       this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
-    } else if (this.particles) {
+    }
+    // 监听模式：音频环形波器
+    else if (this.isListeningMode && this.frequencyData && this.particles) {
+      this.updateListeningRing(time)
+    }
+    else if (this.particles) {
       // 非展示模式：正常球体行为
       // 如果刚从展示模式退出，先等参数过渡完成，再开始位置过渡
       if (this.isExitingShowMode) {
@@ -390,6 +399,107 @@ export class FluidParticles {
    */
   isInShowMode(): boolean {
     return this.isShowMode
+  }
+
+  /**
+   * 更新频域数据（从 ZedAvatar animate loop 每帧调用）
+   * 传入非 null 数据时进入监听模式，传入 null 时退出
+   */
+  updateFrequencyData(data: Uint8Array | null): void {
+    if (data && data.length > 0) {
+      this.isListeningMode = true
+      this.frequencyData = data
+    } else {
+      this.isListeningMode = false
+      this.frequencyData = null
+    }
+  }
+
+  /**
+   * 监听模式：将粒子排列为环，频域数据驱动半径变形
+   */
+  private updateListeningRing(time: number): void {
+    if (!this.particles || !this.frequencyData) return
+
+    const posAttr = this.particles.geometry.attributes.position
+    const positions = posAttr.array as Float32Array
+    const randAttr = this.particles.geometry.attributes.aRandomness
+    const randomness = randAttr.array as Float32Array
+
+    const count = this.currentParams.particleCount
+    const binCount = this.frequencyData.length
+    const baseRadius = this.currentParams.radius
+    const maxSpikeHeight = 3.0
+
+    // 70% 粒子用于频谱柱，30% 用于内部散落
+    const barCount = Math.floor(count * 0.7)
+    const particlesPerBin = barCount / binCount
+
+    // 计算整体音量（内部粒子响应）
+    let totalAmp = 0
+    for (let b = 0; b < binCount; b++) totalAmp += this.frequencyData[b]
+    const avgAmp = totalAmp / binCount / 255
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const r1 = randomness[i]
+      const r2 = randomness[(i * 7 + 3) % count]
+
+      let targetX: number, targetY: number
+
+      if (i < barCount) {
+        // === 频谱柱粒子 ===
+        const binIndex = Math.floor(i / particlesPerBin)
+        const clampedBin = Math.min(binIndex, binCount - 1)
+        const amplitude = this.frequencyData[clampedBin] / 255
+        const binAngle = ((clampedBin + 0.5) / binCount) * Math.PI * 2
+
+        // 粒子在柱内的径向位置 (0=基础环, 1=柱顶)
+        const localIndex = i - binIndex * particlesPerBin
+        const t = localIndex / particlesPerBin
+        const radius = baseRadius + t * amplitude * maxSpikeHeight
+
+        // 柱子角宽度
+        const angle = binAngle + (r1 - 0.5) * 0.02
+        targetX = radius * Math.cos(angle)
+        targetY = radius * Math.sin(angle)
+      } else {
+        // === 内部散落粒子 ===
+        const innerIdx = i - barCount
+        const goldenAngle = Math.PI * (3 - Math.sqrt(5))
+        const angle = innerIdx * goldenAngle
+
+        // 基础半径内分布
+        const maxR = baseRadius * 0.8
+        const baseR = Math.sqrt(r1) * maxR
+
+        // 呼吸（温和）
+        const breath = Math.sin(time * 1.2 + r2 * Math.PI * 2) * 0.1
+
+        // 噪声（轻微扰动）
+        const noiseX = Math.sin(time * 0.8 + r1 * 12.56) * 0.04
+          + Math.sin(time * 1.7 + r2 * 9.42) * 0.02
+        const noiseY = Math.cos(time * 0.9 + r2 * 11.0) * 0.04
+          + Math.cos(time * 1.5 + r1 * 8.0) * 0.02
+
+        // 音频响应
+        const audioPush = avgAmp * 0.15
+
+        let radius = baseR * (1.0 + breath + audioPush)
+
+        // 限制不超出圆环半径
+        radius = Math.min(radius, baseRadius * 0.95)
+
+        targetX = radius * Math.cos(angle) + noiseX
+        targetY = radius * Math.sin(angle) + noiseY
+      }
+
+      // lerp 平滑过渡
+      positions[i3] = lerp(positions[i3], targetX, 0.35)
+      positions[i3 + 1] = lerp(positions[i3 + 1], targetY, 0.35)
+      positions[i3 + 2] = lerp(positions[i3 + 2], 0, 0.35)
+    }
+    posAttr.needsUpdate = true
   }
 
   dispose() {

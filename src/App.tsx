@@ -7,11 +7,11 @@ import { ControlBar } from './components/ControlBar'
 import { ControlPanel } from './components/ControlPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { TextInput } from './components/TextInput'
-import { WaveformDisplay } from './voice/WaveformDisplay'
 import { ZedAvatar } from './zed/ZedAvatar'
 import { statePresets } from './zed/statePresets'
 import { useChat } from './hooks/useChat'
 import { useVoiceRecorder } from './voice/useVoiceRecorder'
+import { useAudioAnalyser } from './voice/useAudioAnalyser'
 import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
 import { useControlSocket } from './hooks/useControlSocket'
@@ -21,7 +21,8 @@ import type { FluidParams } from './components/ControlPanel'
 
 function App() {
   const { messages, isLoading, sendUserMessage, setListening } = useChat()
-  const { isRecording, audioBlob, startRecording, stopRecording } = useVoiceRecorder()
+  const { isRecording, audioBlob, mediaStream, startRecording, stopRecording, releaseStream } = useVoiceRecorder()
+  const frequencyData = useAudioAnalyser(isRecording ? mediaStream : null)
   const { transcribe } = useWhisper()
   const { isSpeaking, speak, audioRef } = useKokoro()
 
@@ -118,6 +119,8 @@ function App() {
             await sendUserMessage(text)
           }
         }
+        // 转录完成后释放麦克风流
+        releaseStream()
       }, 500)
     } else {
       startRecording()
@@ -169,6 +172,7 @@ function App() {
         params={activeParams}
         smooth={usePreset}
         showContent={showContent}
+        frequencyData={isRecording ? frequencyData : null}
       />
 
       {/* Control Panel for fluid params */}
@@ -186,9 +190,6 @@ function App() {
 
       {/* Header */}
       <Header zedState={zedState} />
-
-      {/* Waveform */}
-      <WaveformDisplay isActive={isRecording || isSpeaking} />
 
       {/* Subtitle */}
       <SubtitleDisplay currentMessage={currentMessage} isStreaming={isLoading} />

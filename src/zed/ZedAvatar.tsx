@@ -18,10 +18,11 @@ interface ZedAvatarProps {
   params: FluidParams
   smooth?: boolean // 是否使用平滑过渡（状态预设模式）
   showContent?: ShowContent | null // 展示内容
+  frequencyData?: Uint8Array | null // 实时频域数据（监听模式用）
   onShowManagerReady?: (manager: ShowManager) => void // ShowManager 就绪回调
 }
 
-export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showContent, onShowManagerReady }: ZedAvatarProps) {
+export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showContent, frequencyData, onShowManagerReady }: ZedAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
@@ -30,11 +31,16 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
   const showManagerRef = useRef<ShowManager | null>(null)
   const animationRef = useRef<number | undefined>(undefined)
   const audioIntensityRef = useRef(audioIntensity)
+  const frequencyDataRef = useRef<Uint8Array | null>(null)
 
   // Keep refs in sync with props
   useEffect(() => {
     audioIntensityRef.current = audioIntensity
   }, [audioIntensity])
+
+  useEffect(() => {
+    frequencyDataRef.current = frequencyData ?? null
+  }, [frequencyData])
 
   // Update params when they change (keep current radius and particleSize from control panel)
   useEffect(() => {
@@ -130,6 +136,7 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
     const clock = new THREE.Clock()
     const animate = () => {
       const elapsedTime = clock.getElapsedTime()
+      particles.updateFrequencyData(frequencyDataRef.current)
       particles.update(elapsedTime, audioIntensityRef.current)
       renderer.render(scene, camera)
       animationRef.current = requestAnimationFrame(animate)

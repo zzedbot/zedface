@@ -92,10 +92,10 @@ export const statePresets: Record<ZedState, FluidParams> = {
     particleSides: 0, // 圆形，柔和
     radius: UNIFIED_RADIUS,
     animSpeed: 0.8,
-    noiseAmplitude: 0.8,
+    noiseAmplitude: 0,
     breathSpeed: 1.5,
-    breathAmplitude: 0.2,
-    rotationSpeed: 0.05,
+    breathAmplitude: 0,
+    rotationSpeed: 0,
     transitionSpeed: 0.08, // 标准过渡
     colorMixSpeed: 0.5,
     glowIntensity: 0.6,
