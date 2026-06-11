@@ -94,6 +94,10 @@ npm run build
 npm run preview
 ```
 
+### 📖 详细部署文档
+
+完整的部署指南（包括语音服务、WebSocket 服务、Docker 部署等）请查看：[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+
 ## 📖 States
 
 系统支持 9 种状态，每种状态都有独特的视觉效果：
