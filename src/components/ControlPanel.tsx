@@ -52,6 +52,7 @@ interface ControlPanelProps {
   onStateChange?: (state: ZedState) => void
   onShow?: (type: 'text' | 'emoji' | 'image' | 'shape', content: string, options?: any) => void
   onShowEnd?: () => void
+  onCancelShow?: () => void
 }
 
 export function ControlPanel({
@@ -63,6 +64,7 @@ export function ControlPanel({
   onStateChange,
   onShow,
   onShowEnd,
+  onCancelShow,
 }: ControlPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [showType, setShowType] = useState<'text' | 'emoji' | 'image' | 'shape'>('text')
@@ -322,7 +324,7 @@ export function ControlPanel({
                   </div>
                 )}
 
-                {/* Show/End Buttons */}
+                {/* Show/Cancel/End Buttons */}
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     onClick={() => onShow?.(showType, showContent)}
@@ -339,6 +341,21 @@ export function ControlPanel({
                     }}
                   >
                     展示
+                  </button>
+                  <button
+                    onClick={() => onCancelShow?.()}
+                    style={{
+                      flex: 1,
+                      padding: '6px',
+                      background: 'rgba(255, 165, 2, 0.1)',
+                      border: '1px solid rgba(255, 165, 2, 0.3)',
+                      borderRadius: '4px',
+                      color: '#ffa502',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    取消
                   </button>
                   <button
                     onClick={() => onShowEnd?.()}

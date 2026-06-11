@@ -2,6 +2,7 @@
 
 import { canvasSampler } from '../utils/CanvasSampler'
 import type { FluidParticles } from '../zed/FluidParticles'
+import { logger } from '../utils/Logger'
 
 export type ShowContentType = 'text' | 'emoji' | 'image' | 'shape'
 
@@ -27,7 +28,7 @@ export class ShowManager {
   async showText(text: string, options: ShowOptions = {}): Promise<void> {
     if (!this.particles) return
 
-    console.log('[ShowManager] Showing text:', text)
+    logger.log(`[ShowManager] Showing text: ${text}`)
     const positions = canvasSampler.sampleText(text, {
       fontSize: options.fontSize || 100,
       fontFamily: options.fontFamily || 'Arial, sans-serif',
@@ -44,7 +45,7 @@ export class ShowManager {
   async showEmoji(emoji: string, options: ShowOptions = {}): Promise<void> {
     if (!this.particles) return
 
-    console.log('[ShowManager] Showing emoji:', emoji)
+    logger.log(`[ShowManager] Showing emoji: ${emoji}`)
     const positions = canvasSampler.sampleEmoji(emoji, {
       fontSize: options.fontSize || 200,
       maxPoints: 6000,
@@ -59,7 +60,7 @@ export class ShowManager {
   async showImage(source: string, options: ShowOptions = {}): Promise<void> {
     if (!this.particles) return
 
-    console.log('[ShowManager] Showing image:', source.substring(0, 50) + '...')
+    logger.log(`[ShowManager] Showing image: ${source.substring(0, 50)}...`)
 
     try {
       const positions = await canvasSampler.sampleImage(source, {
@@ -70,7 +71,7 @@ export class ShowManager {
 
       this.particles.setShowContent(positions)
     } catch (error) {
-      console.error('[ShowManager] Failed to show image:', error)
+      logger.log(`[ShowManager] Failed to show image: ${error}`)
     }
   }
 
@@ -80,7 +81,7 @@ export class ShowManager {
   async showShape(shape: string, options: ShowOptions = {}): Promise<void> {
     if (!this.particles) return
 
-    console.log('[ShowManager] Showing shape:', shape)
+    logger.log(`[ShowManager] Showing shape: ${shape}`)
     const positions = canvasSampler.sampleShape(shape, {
       size: options.size || 200,
       maxPoints: 6000,
@@ -90,12 +91,22 @@ export class ShowManager {
   }
 
   /**
+   * 取消展示（清除待展示的位置数据）
+   */
+  cancelShow(): void {
+    if (!this.particles) return
+
+    logger.log('[ShowManager] Canceling show mode')
+    this.particles.cancelShow()
+  }
+
+  /**
    * 退出展示模式
    */
   exitShow(): void {
     if (!this.particles) return
 
-    console.log('[ShowManager] Exiting show mode')
+    logger.log('[ShowManager] Exiting show mode')
     this.particles.exitShowMode()
   }
 

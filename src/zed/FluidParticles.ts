@@ -3,6 +3,7 @@
 import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders'
 import type { FluidParams } from '../components/ControlPanel'
+import { logger } from '../utils/Logger'
 
 // 线性插值函数
 function lerp(a: number, b: number, t: number): number {
@@ -41,6 +42,10 @@ export class FluidParticles {
   private showTransitionProgress: number = 0
   private isExitingShowMode: boolean = false // 标记是否正在退出展示模式
   private sphereTargetPositions: Float32Array | null = null // 退出展示模式时的球体目标位置
+
+  // 进入展示模式相关（等待参数过渡完成）
+  private isEnteringShowMode: boolean = false
+  private pendingShowPositions: Float32Array | null = null
 
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
@@ -202,8 +207,28 @@ export class FluidParticles {
     this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
     this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
 
+    // 进入展示模式处理（等待参数过渡完成后开始位置过渡）
+    if (this.isEnteringShowMode && this.pendingShowPositions && this.particles) {
+      // 检查参数是否已经过渡完成
+      const paramsTransitioned =
+        Math.abs(this.currentParams.radius - this.targetParams.radius) < 0.01 &&
+        Math.abs(this.currentParams.particleSize - this.targetParams.particleSize) < 0.1
+
+      if (paramsTransitioned) {
+        logger.log(`[FluidParticles] Params transitioned at time: ${time.toFixed(2)}, starting position transition to show content`)
+        // 参数过渡完成，开始位置过渡
+        this.showTargetPositions = this.pendingShowPositions
+        this.isShowMode = true
+        this.isEnteringShowMode = false
+        this.pendingShowPositions = null
+        this.showTransitionProgress = 0
+      } else {
+        // 参数还在过渡中，保持当前状态
+        this.particles.rotation.y = time * this.currentParams.rotationSpeed
+      }
+    }
     // 展示模式处理
-    if (this.isShowMode && this.showTargetPositions && this.particles) {
+    else if (this.isShowMode && this.showTargetPositions && this.particles) {
       // 逐渐增加过渡进度
       this.showTransitionProgress = Math.min(1, this.showTransitionProgress + 0.02)
 
@@ -226,32 +251,31 @@ export class FluidParticles {
       this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1
     } else if (this.particles) {
       // 非展示模式：正常球体行为
-      // 如果刚从展示模式退出，等待参数过渡完成后再过渡到球体位置
+      // 如果刚从展示模式退出，先等参数过渡完成，再开始位置过渡
       if (this.isExitingShowMode) {
         // 检查参数是否已经过渡完成
         const paramsTransitioned =
           Math.abs(this.currentParams.radius - this.targetParams.radius) < 0.01 &&
-          Math.abs(this.currentParams.particleSize - this.targetParams.particleSize) < 0.1 &&
-          Math.abs(this.currentParams.animSpeed - this.targetParams.animSpeed) < 0.01
+          Math.abs(this.currentParams.particleSize - this.targetParams.particleSize) < 0.1
 
-        if (paramsTransitioned) {
-          // 参数过渡完成后，计算球体目标位置
-          if (!this.sphereTargetPositions) {
-            console.log('[FluidParticles] Params transitioned, calculating sphere target positions')
-            this.sphereTargetPositions = new Float32Array(this.currentParams.particleCount * 3)
-            const radius = this.currentParams.radius // 此时 currentParams 已经接近 targetParams
+        if (paramsTransitioned && !this.sphereTargetPositions) {
+          // 参数过渡完成后，用当前参数计算球体目标位置
+          logger.log(`[FluidParticles] Params transitioned at time: ${time.toFixed(2)}, calculating sphere with currentRadius: ${this.currentParams.radius.toFixed(3)}`)
+          this.sphereTargetPositions = new Float32Array(this.currentParams.particleCount * 3)
+          const radius = this.currentParams.radius // 使用当前半径（已接近目标）
 
-            for (let i = 0; i < this.currentParams.particleCount; i++) {
-              const i3 = i * 3
-              const theta = Math.random() * Math.PI * 2
-              const phi = Math.acos(Math.random() * 2 - 1)
+          for (let i = 0; i < this.currentParams.particleCount; i++) {
+            const i3 = i * 3
+            const theta = Math.random() * Math.PI * 2
+            const phi = Math.acos(Math.random() * 2 - 1)
 
-              this.sphereTargetPositions[i3] = radius * Math.sin(phi) * Math.cos(theta)
-              this.sphereTargetPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
-              this.sphereTargetPositions[i3 + 2] = radius * Math.cos(phi)
-            }
+            this.sphereTargetPositions[i3] = radius * Math.sin(phi) * Math.cos(theta)
+            this.sphereTargetPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
+            this.sphereTargetPositions[i3 + 2] = radius * Math.cos(phi)
           }
+        }
 
+        if (this.sphereTargetPositions) {
           // 粒子向球体目标位置过渡
           const posAttr = this.particles.geometry.attributes.position
           const positions = posAttr.array as Float32Array
@@ -275,14 +299,13 @@ export class FluidParticles {
           }
           posAttr.needsUpdate = true
 
-          // 过渡完成后清理
+          // 位置过渡完成后清理
           if (allTransitioned) {
-            console.log('[FluidParticles] Transition to sphere complete')
+            logger.log(`[FluidParticles] Position transition complete at time: ${time.toFixed(2)}`)
             this.isExitingShowMode = false
             this.sphereTargetPositions = null
           }
         }
-        // 如果参数还没过渡完成，保持当前粒子位置不变，等待参数过渡
       }
 
       this.particles.rotation.y = time * this.currentParams.rotationSpeed
@@ -291,7 +314,7 @@ export class FluidParticles {
 
   // 设置目标参数（触发平滑过渡）
   setTargetParams(params: FluidParams) {
-    console.log('[FluidParticles] setTargetParams called:', params.animSpeed, params.noiseAmplitude)
+    logger.log(`[FluidParticles] setTargetParams called, animSpeed: ${params.animSpeed}, noiseAmplitude: ${params.noiseAmplitude}, radius: ${params.radius}, size: ${params.particleSize}`)
     this.targetParams = { ...params }
   }
 
@@ -327,25 +350,38 @@ export class FluidParticles {
   }
 
   /**
-   * 设置展示内容（进入展示模式）
+   * 设置展示内容（进入"等待参数过渡"状态）
    */
   setShowContent(positions: Float32Array): void {
-    console.log('[FluidParticles] Entering show mode with', positions.length / 3, 'points')
+    logger.log(`[FluidParticles] setShowContent called with ${positions.length / 3} points, entering "waiting for params" state`)
 
-    this.showTargetPositions = positions
-    this.isShowMode = true
+    // 保存展示位置，但不立即进入展示模式
+    this.pendingShowPositions = positions
+    this.isEnteringShowMode = true
+    this.isShowMode = false
     this.showTransitionProgress = 0
     this.isExitingShowMode = false
+  }
+
+  /**
+   * 取消展示（清除待展示的位置数据）
+   */
+  cancelShow(): void {
+    logger.log(`[FluidParticles] Canceling show mode`)
+    this.pendingShowPositions = null
+    this.isEnteringShowMode = false
   }
 
   /**
    * 退出展示模式
    */
   exitShowMode(): void {
-    console.log('[FluidParticles] Exiting show mode')
+    logger.log(`[FluidParticles] Exiting show mode, currentRadius: ${this.currentParams.radius.toFixed(3)}, targetRadius: ${this.targetParams.radius.toFixed(3)}, currentSize: ${this.currentParams.particleSize.toFixed(3)}, targetSize: ${this.targetParams.particleSize.toFixed(3)}`)
     this.isShowMode = false
     this.showTransitionProgress = 0
     this.isExitingShowMode = true
+    this.isEnteringShowMode = false
+    this.pendingShowPositions = null
   }
 
   /**

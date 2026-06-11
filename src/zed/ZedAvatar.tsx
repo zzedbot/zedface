@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { FluidParticles } from './FluidParticles'
 import { ShowManager } from '../show/ShowManager'
+import { logger } from '../utils/Logger'
 import type { FluidParams } from '../components/ControlPanel'
 
 interface ShowContent {
@@ -56,7 +57,7 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
     if (!showManagerRef.current) return
 
     if (showContent) {
-      console.log('[ZedAvatar] Show content:', showContent)
+      logger.log(`[ZedAvatar] Show content: ${showContent.type} - ${showContent.content}`)
       switch (showContent.type) {
         case 'text':
           showManagerRef.current.showText(showContent.content, showContent.options)
@@ -72,9 +73,16 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
           break
       }
     } else {
-      // 如果没有 showContent，退出展示模式
-      console.log('[ZedAvatar] Exit show mode')
-      showManagerRef.current.exitShow()
+      // 如果没有 showContent
+      if (showManagerRef.current.isInShowMode()) {
+        // 如果已经在展示模式，退出展示模式
+        logger.log('[ZedAvatar] Exit show mode')
+        showManagerRef.current.exitShow()
+      } else {
+        // 如果不在展示模式（可能在"等待参数过渡"状态），取消展示
+        logger.log('[ZedAvatar] Cancel show mode')
+        showManagerRef.current.cancelShow()
+      }
     }
   }, [showContent])
 

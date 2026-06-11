@@ -15,6 +15,7 @@ import { useVoiceRecorder } from './voice/useVoiceRecorder'
 import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
 import { useControlSocket } from './hooks/useControlSocket'
+import { LogDisplay } from './components/LogDisplay'
 import type { ZedState } from './types'
 import type { FluidParams } from './components/ControlPanel'
 
@@ -62,6 +63,12 @@ function App() {
     setShowContent(null)
     setDebugState('idle')
     setFluidParams(statePresets.idle)
+  }, [])
+
+  const handleCancelShow = useCallback(() => {
+    console.log('[App] Control: cancelShow')
+    setShowContent(null)
+    // 保持 show 状态的参数，不恢复到 idle
   }, [])
 
   // WebSocket 连接
@@ -166,6 +173,7 @@ function App() {
         onStateChange={handleStateChange}
         onShow={handleShow}
         onShowEnd={handleShowEnd}
+        onCancelShow={handleCancelShow}
       />
 
       {/* Header */}
@@ -206,6 +214,9 @@ function App() {
           (audioRef as React.MutableRefObject<HTMLAudioElement | null>).current = el
         }
       }} style={{ display: 'none' }} />
+
+      {/* Debug Log Display */}
+      <LogDisplay />
     </div>
   )
 }
