@@ -7,22 +7,20 @@ export interface SampleOptions {
   fontFamily?: string
   color?: string
   maxPoints?: number
-  size?: number // 用于图形的大小
-  maxWidth?: number // 最大宽度（像素）
-  maxHeight?: number // 最大高度（像素）
+  size?: number
+  maxWidth?: number
+  maxHeight?: number
 }
 
+// 常量
+const ALPHA_THRESHOLD = 128
+const SAMPLE_STEP = 2
+const SHOW_RADIUS = 3.0
+const Z_DEPTH_RANGE = 0.2
+const IMAGE_LOAD_TIMEOUT_MS = 15000
+
 export class CanvasSampler {
-  private canvas: HTMLCanvasElement
-  private ctx: CanvasRenderingContext2D
-
-  // 黄金比例
   private static readonly GOLDEN_RATIO = 0.618
-
-  constructor() {
-    this.canvas = document.createElement('canvas')
-    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true })!
-  }
 
   /**
    * 获取屏幕尺寸
@@ -46,9 +44,14 @@ export class CanvasSampler {
   }
 
   /**
-   * 采样文字（支持自动换行和缩放，保证文字不变形，尽可能填满展示区域）
+   * 采样文字（支持自动换行和缩放）
    */
   sampleText(text: string, options: SampleOptions = {}): Float32Array {
+    // 空输入保护
+    if (!text || !text.trim()) {
+      return new Float32Array(0)
+    }
+
     const {
       fontFamily = 'Arial, sans-serif',
       color = '#ffffff',
@@ -57,164 +60,152 @@ export class CanvasSampler {
 
     const screen = this.getScreenSize()
     const screenAspectRatio = screen.width / screen.height
-
-    // 计算最大展示尺寸（屏幕的 61.8%）
     const maxDisplayWidth = screen.width * CanvasSampler.GOLDEN_RATIO
     const maxDisplayHeight = screen.height * CanvasSampler.GOLDEN_RATIO
 
-    // 先使用一个基准字体大小来测量文字
+    // 使用临时 canvas 测量文字
+    const measureCanvas = document.createElement('canvas')
+    const measureCtx = measureCanvas.getContext('2d')!
     const baseFontSize = 100
-    this.ctx.font = `bold ${baseFontSize}px ${fontFamily}`
+    measureCtx.font = `bold ${baseFontSize}px ${fontFamily}`
 
-    // 支持主动换行：先按换行符分割
+    // 处理换行
     const inputLines = text.split('\n')
     const lines: string[] = []
 
-    // 对每一行进行处理
     for (const inputLine of inputLines) {
-      // 按空格分割单词
       const words = inputLine.split(' ')
-
-      // 逐词构建行
       let currentLine = ''
       for (const word of words) {
         const testLine = currentLine ? currentLine + ' ' + word : word
-        const testWidth = this.ctx.measureText(testLine).width
+        const testWidth = measureCtx.measureText(testLine).width
 
-        // 如果加上这个单词后超出最大宽度，且当前行不为空
         if (testWidth > maxDisplayWidth && currentLine) {
-          lines.push(currentLine)  // 将当前行保存
-          currentLine = word       // 开始新行，放入当前单词
+          if (currentLine.trim()) lines.push(currentLine)
+          currentLine = word
         } else {
-          currentLine = testLine   // 继续在当前行添加单词
+          currentLine = testLine
         }
       }
-      // 保存当前行（即使为空也要保存，以保持换行）
-      lines.push(currentLine)
+      if (currentLine.trim()) lines.push(currentLine)
     }
 
-    // 计算文字在基准字体下的最大宽度和总高度
-    const lineWidths = lines.map(line => this.ctx.measureText(line).width)
-    const maxLineWidth = Math.max(...lineWidths)
+    if (lines.length === 0) {
+      return new Float32Array(0)
+    }
+
+    // 计算缩放
+    const lineWidths = lines.map(line => measureCtx.measureText(line).width)
+    const maxLineWidth = Math.max(...lineWidths, 1) // 保护除零
     const baseLineHeight = baseFontSize * 1.2
     const totalBaseHeight = lines.length * baseLineHeight
 
-    // 根据展示区域和文字尺寸，计算合适的字体大小
     const widthScale = maxDisplayWidth / maxLineWidth
     const heightScale = maxDisplayHeight / totalBaseHeight
     const scale = Math.min(widthScale, heightScale)
+    const finalFontSize = Math.max(1, Math.floor(baseFontSize * scale))
 
-    // 最终的字体大小
-    const finalFontSize = Math.floor(baseFontSize * scale)
-
-    // 使用最大展示区域作为 Canvas 尺寸
+    // 创建主 canvas
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
     const canvasWidth = Math.ceil(maxDisplayWidth)
-    const canvasHeight = Math.ceil(maxDisplayWidth / screenAspectRatio)
+    const canvasHeight = Math.ceil(maxDisplayHeight)
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
 
-    // 创建 Canvas
-    this.canvas.width = canvasWidth
-    this.canvas.height = canvasHeight
-
-    // 清空 Canvas
-    this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
-
-    // 绘制文字（居中）
-    this.ctx.fillStyle = color
-    this.ctx.font = `bold ${finalFontSize}px ${fontFamily}`
-    this.ctx.textAlign = 'center'
-    this.ctx.textBaseline = 'middle'
+    // 绘制文字
+    ctx.fillStyle = color
+    ctx.font = `bold ${finalFontSize}px ${fontFamily}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
 
     const lineHeight = finalFontSize * 1.2
     const totalTextHeight = lines.length * lineHeight
     const startY = canvasHeight / 2 - totalTextHeight / 2 + lineHeight / 2
 
     lines.forEach((line, index) => {
-      this.ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
+      ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
     })
 
-    return this.samplePixels(maxPoints)
+    return this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
   }
 
   /**
-   * 采样 Emoji（支持自动缩放）
+   * 采样 Emoji
    */
   sampleEmoji(emoji: string, options: SampleOptions = {}): Float32Array {
-    const {
-      fontSize = 200,
-      maxPoints = 12000,
-    } = options
+    if (!emoji) return new Float32Array(0)
 
+    const { fontSize = 200, maxPoints = 12000 } = options
     const maxDisplay = this.getMaxDisplaySize()
     const maxWidth = options.maxWidth || maxDisplay.maxWidth
     const maxHeight = options.maxHeight || maxDisplay.maxHeight
 
-    // 自动调整字体大小以适应最大尺寸
-    let adjustedFontSize = fontSize
-    this.ctx.font = `${adjustedFontSize}px serif`
-    const metrics = this.ctx.measureText(emoji)
-    const emojiWidth = metrics.width
-    const emojiHeight = adjustedFontSize * 1.2 // 估算高度
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
 
-    // 如果 emoji 太大，缩小字体
+    let adjustedFontSize = fontSize
+    ctx.font = `${adjustedFontSize}px serif`
+    const emojiWidth = ctx.measureText(emoji).width
+    const emojiHeight = adjustedFontSize * 1.2
+
     if (emojiWidth > maxWidth || emojiHeight > maxHeight) {
-      const scaleX = maxWidth / emojiWidth
-      const scaleY = maxHeight / emojiHeight
-      const scale = Math.min(scaleX, scaleY)
-      adjustedFontSize = Math.floor(adjustedFontSize * scale)
+      const scale = Math.min(maxWidth / emojiWidth, maxHeight / emojiHeight)
+      adjustedFontSize = Math.max(1, Math.floor(adjustedFontSize * scale))
     }
 
     const canvasSize = Math.ceil(adjustedFontSize * 1.5)
+    canvas.width = canvasSize
+    canvas.height = canvasSize
 
-    this.canvas.width = canvasSize
-    this.canvas.height = canvasSize
+    ctx.font = `${adjustedFontSize}px serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(emoji, canvasSize / 2, canvasSize / 2)
 
-    this.ctx.clearRect(0, 0, canvasSize, canvasSize)
-    this.ctx.font = `${adjustedFontSize}px serif`
-    this.ctx.textAlign = 'center'
-    this.ctx.textBaseline = 'middle'
-    this.ctx.fillText(emoji, canvasSize / 2, canvasSize / 2)
-
-    return this.samplePixels(maxPoints)
+    return this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
   }
 
   /**
-   * 采样图片（支持 URL 和 Base64，自动缩放）
+   * 采样图片
    */
   async sampleImage(source: string, options: SampleOptions = {}): Promise<Float32Array> {
-    const {
-      maxPoints = 12000,
-    } = options
-
+    const { maxPoints = 12000 } = options
     const maxDisplay = this.getMaxDisplaySize()
     const maxWidth = options.maxWidth || maxDisplay.maxWidth
     const maxHeight = options.maxHeight || maxDisplay.maxHeight
 
-    // 使用最大显示尺寸作为 canvas 尺寸
     const canvasWidth = Math.ceil(maxWidth)
     const canvasHeight = Math.ceil(maxHeight)
 
-    this.canvas.width = canvasWidth
-    this.canvas.height = canvasHeight
-    this.ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+    canvas.width = canvasWidth
+    canvas.height = canvasHeight
 
     return new Promise((resolve, reject) => {
       const img = new Image()
+      img.crossOrigin = 'anonymous'
 
-      img.crossOrigin = 'anonymous' // 支持跨域图片
+      const timeoutId = setTimeout(() => {
+        img.src = '' // 取消加载
+        reject(new Error('Image load timeout'))
+      }, IMAGE_LOAD_TIMEOUT_MS)
 
       img.onload = () => {
-        // 计算缩放比例，保持宽高比，适应最大显示尺寸
+        clearTimeout(timeoutId)
         const scale = Math.min(maxWidth / img.width, maxHeight / img.height, 1)
         const scaledWidth = img.width * scale
         const scaledHeight = img.height * scale
         const x = (canvasWidth - scaledWidth) / 2
         const y = (canvasHeight - scaledHeight) / 2
 
-        this.ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
-        resolve(this.samplePixels(maxPoints))
+        ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
+        resolve(this.samplePixelsFromCanvas(canvas, ctx, maxPoints))
       }
 
       img.onerror = () => {
+        clearTimeout(timeoutId)
         reject(new Error('Failed to load image'))
       }
 
@@ -226,193 +217,154 @@ export class CanvasSampler {
    * 采样预定义图形
    */
   sampleShape(shape: string, options: SampleOptions = {}): Float32Array {
-    const {
-      size = 200,
-      maxPoints = 6000,
-    } = options
+    const { size = 200, maxPoints = 6000 } = options
 
-    this.canvas.width = size
-    this.canvas.height = size
-    this.ctx.clearRect(0, 0, size, size)
-    this.ctx.fillStyle = '#ffffff'
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')!
+    canvas.width = size
+    canvas.height = size
+    ctx.fillStyle = '#ffffff'
 
     const center = size / 2
 
     switch (shape.toLowerCase()) {
       case 'heart':
-        this.drawHeart(center, center, size * 0.4)
+        this.drawHeart(ctx, center, center, size * 0.4)
         break
       case 'star':
-        this.drawStar(center, center, 5, size * 0.4, size * 0.2)
+        this.drawStar(ctx, center, center, 5, size * 0.4, size * 0.2)
         break
       case 'circle':
-        this.ctx.beginPath()
-        this.ctx.arc(center, center, size * 0.4, 0, Math.PI * 2)
-        this.ctx.fill()
+        ctx.beginPath()
+        ctx.arc(center, center, size * 0.4, 0, Math.PI * 2)
+        ctx.fill()
         break
       case 'triangle':
-        this.drawTriangle(center, center, size * 0.4)
+        this.drawTriangle(ctx, center, center, size * 0.4)
         break
       case 'square':
-        this.ctx.fillRect(center - size * 0.3, center - size * 0.3, size * 0.6, size * 0.6)
+        ctx.fillRect(center - size * 0.3, center - size * 0.3, size * 0.6, size * 0.6)
         break
       default:
         console.warn(`Unknown shape: ${shape}`)
         return new Float32Array(0)
     }
 
-    return this.samplePixels(maxPoints)
+    return this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
   }
 
   /**
-   * 像素采样核心方法
+   * 像素采样核心方法（使用独立 canvas，避免并发冲突）
    */
-  private samplePixels(maxPoints: number): Float32Array {
-    const width = this.canvas.width
-    const height = this.canvas.height
-    const imageData = this.ctx.getImageData(0, 0, width, height)
+  private samplePixelsFromCanvas(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    maxPoints: number,
+  ): Float32Array {
+    const width = canvas.width
+    const height = canvas.height
+
+    if (width === 0 || height === 0) return new Float32Array(0)
+
+    const imageData = ctx.getImageData(0, 0, width, height)
     const data = imageData.data
 
     // 收集所有非透明像素
     const points: [number, number][] = []
-    const alphaThreshold = 128 // alpha 阈值
 
-    for (let y = 0; y < height; y += 2) { // 每 2 个像素采样一次，提高性能
-      for (let x = 0; x < width; x += 2) {
+    for (let y = 0; y < height; y += SAMPLE_STEP) {
+      for (let x = 0; x < width; x += SAMPLE_STEP) {
         const i = (y * width + x) * 4
-        const alpha = data[i + 3]
-
-        if (alpha > alphaThreshold) {
+        if (data[i + 3] > ALPHA_THRESHOLD) {
           points.push([x, y])
         }
       }
     }
 
-    // 如果点数超过最大值，随机采样
-    let sampledPoints: [number, number][]
-    if (points.length > maxPoints) {
-      sampledPoints = this.randomSample(points, maxPoints)
-    } else {
-      sampledPoints = points
-    }
+    if (points.length === 0) return new Float32Array(0)
 
-    // 转换为 3D 坐标
+    // 采样
+    const sampledPoints = points.length > maxPoints
+      ? this.fisherYatesSample(points, maxPoints)
+      : points
+
     return this.to3DPositions(sampledPoints, width, height)
   }
 
   /**
-   * 随机采样
+   * Fisher-Yates 随机采样（O(n) 时间，无碰撞问题）
    */
-  private randomSample(points: [number, number][], count: number): [number, number][] {
-    const sampled: [number, number][] = []
-    const used = new Set<number>()
+  private fisherYatesSample(points: [number, number][], count: number): [number, number][] {
+    const n = points.length
+    if (count >= n) return [...points]
 
-    while (sampled.length < count) {
-      const index = Math.floor(Math.random() * points.length)
-      if (!used.has(index)) {
-        used.add(index)
-        sampled.push(points[index])
-      }
+    // 创建索引数组，部分洗牌
+    const indices = Array.from({ length: n }, (_, i) => i)
+
+    for (let i = 0; i < count; i++) {
+      const j = i + Math.floor(Math.random() * (n - i))
+      ;[indices[i], indices[j]] = [indices[j], indices[i]]
     }
 
-    return sampled
+    return indices.slice(0, count).map(i => points[i])
   }
 
   /**
    * 将 2D Canvas 坐标转换为 3D 空间坐标
    */
   private to3DPositions(points: [number, number][], canvasWidth: number, canvasHeight: number): Float32Array {
+    if (canvasHeight === 0) return new Float32Array(0)
+
     const positions = new Float32Array(points.length * 3)
-
-    // 目标展示区域大小
-    const showRadius = 3.0
-
-    // 计算 Canvas 的宽高比
     const aspectRatio = canvasWidth / canvasHeight
 
     for (let i = 0; i < points.length; i++) {
       const [x, y] = points[i]
       const i3 = i * 3
 
-      // 归一化到 [-1, 1] 范围
       const normalizedX = (x / canvasWidth) * 2 - 1
-      const normalizedY = -((y / canvasHeight) * 2 - 1) // Y 轴翻转
+      const normalizedY = -((y / canvasHeight) * 2 - 1)
 
-      // 映射到 3D 空间，保持宽高比
-      // X 方向乘以宽高比，确保文字不变形
-      positions[i3] = normalizedX * showRadius * aspectRatio
-      positions[i3 + 1] = normalizedY * showRadius
-      positions[i3 + 2] = (Math.random() - 0.5) * 0.2 // Z 轴轻微随机深度
+      positions[i3] = normalizedX * SHOW_RADIUS * aspectRatio
+      positions[i3 + 1] = normalizedY * SHOW_RADIUS
+      positions[i3 + 2] = (Math.random() - 0.5) * Z_DEPTH_RANGE
     }
 
     return positions
   }
 
-  /**
-   * 绘制心形
-   */
-  private drawHeart(cx: number, cy: number, size: number) {
-    this.ctx.beginPath()
+  private drawHeart(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+    ctx.beginPath()
     const topY = cy - size * 0.5
-
-    this.ctx.moveTo(cx, cy + size * 0.5)
-
-    // 左半部分
-    this.ctx.bezierCurveTo(
-      cx - size, cy,
-      cx - size, topY,
-      cx, topY + size * 0.3
-    )
-
-    // 右半部分
-    this.ctx.bezierCurveTo(
-      cx + size, topY,
-      cx + size, cy,
-      cx, cy + size * 0.5
-    )
-
-    this.ctx.fill()
+    ctx.moveTo(cx, cy + size * 0.5)
+    ctx.bezierCurveTo(cx - size, cy, cx - size, topY, cx, topY + size * 0.3)
+    ctx.bezierCurveTo(cx + size, topY, cx + size, cy, cx, cy + size * 0.5)
+    ctx.fill()
   }
 
-  /**
-   * 绘制星形
-   */
-  private drawStar(cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) {
+  private drawStar(ctx: CanvasRenderingContext2D, cx: number, cy: number, spikes: number, outerRadius: number, innerRadius: number) {
     let rot = Math.PI / 2 * 3
-    let x = cx
-    let y = cy
     const step = Math.PI / spikes
-
-    this.ctx.beginPath()
-    this.ctx.moveTo(cx, cy - outerRadius)
-
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - outerRadius)
     for (let i = 0; i < spikes; i++) {
-      x = cx + Math.cos(rot) * outerRadius
-      y = cy + Math.sin(rot) * outerRadius
-      this.ctx.lineTo(x, y)
+      ctx.lineTo(cx + Math.cos(rot) * outerRadius, cy + Math.sin(rot) * outerRadius)
       rot += step
-
-      x = cx + Math.cos(rot) * innerRadius
-      y = cy + Math.sin(rot) * innerRadius
-      this.ctx.lineTo(x, y)
+      ctx.lineTo(cx + Math.cos(rot) * innerRadius, cy + Math.sin(rot) * innerRadius)
       rot += step
     }
-
-    this.ctx.lineTo(cx, cy - outerRadius)
-    this.ctx.closePath()
-    this.ctx.fill()
+    ctx.lineTo(cx, cy - outerRadius)
+    ctx.closePath()
+    ctx.fill()
   }
 
-  /**
-   * 绘制三角形
-   */
-  private drawTriangle(cx: number, cy: number, size: number) {
-    this.ctx.beginPath()
-    this.ctx.moveTo(cx, cy - size)
-    this.ctx.lineTo(cx - size * 0.866, cy + size * 0.5)
-    this.ctx.lineTo(cx + size * 0.866, cy + size * 0.5)
-    this.ctx.closePath()
-    this.ctx.fill()
+  private drawTriangle(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+    ctx.beginPath()
+    ctx.moveTo(cx, cy - size)
+    ctx.lineTo(cx - size * 0.866, cy + size * 0.5)
+    ctx.lineTo(cx + size * 0.866, cy + size * 0.5)
+    ctx.closePath()
+    ctx.fill()
   }
 }
 

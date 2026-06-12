@@ -4,7 +4,6 @@ export const vertexShader = `
   uniform float uTime;
   uniform float uAudioIntensity;
   uniform float uParticleSize;
-  uniform vec2 uMouse;
   uniform float uAnimSpeed;
   uniform float uBreathSpeed;
   uniform float uBreathAmplitude;

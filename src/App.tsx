@@ -16,8 +16,7 @@ import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
 import { useControlSocket } from './hooks/useControlSocket'
 import { LogDisplay } from './components/LogDisplay'
-import type { ZedState } from './types'
-import type { FluidParams } from './components/ControlPanel'
+import type { ZedState, FluidParams } from './types'
 
 function App() {
   const { messages, isLoading, sendUserMessage, setListening } = useChat()
@@ -30,7 +29,7 @@ function App() {
   const [showTextInput, setShowTextInput] = useState(false)
   const [fluidParams, setFluidParams] = useState<FluidParams>(statePresets.intro)
   const [usePreset, setUsePreset] = useState(true) // 默认使用状态预设模式
-  const [debugState, setDebugState] = useState<ZedState>('intro') // 初始状态为 intro
+  const [debugState, setDebugState] = useState<ZedState | null>(null) // null = auto-state
   const [showContent, setShowContent] = useState<{
     type: 'text' | 'emoji' | 'image' | 'shape'
     content: string
@@ -39,6 +38,10 @@ function App() {
 
   const currentMessage = messages.length > 0 ? messages[messages.length - 1] : null
   const prevMessageCountRef = useRef(messages.length)
+  const audioBlobRef = useRef(audioBlob)
+  const spokenMessageIdRef = useRef<string | null>(null)
+  const showEndTimerRef = useRef<number | null>(null)
+  useEffect(() => { audioBlobRef.current = audioBlob }, [audioBlob])
 
   // WebSocket 控制回调
   const handleControlStateChange = useCallback((state: ZedState) => {
@@ -61,16 +64,17 @@ function App() {
 
   const handleShowEnd = useCallback(() => {
     console.log('[App] Control: showEnd')
-    // 先执行取消逻辑，取消文字展示
+    // 取消上一个 timer（防止竞态）
+    if (showEndTimerRef.current !== null) {
+      clearTimeout(showEndTimerRef.current)
+    }
     setShowContent(null)
 
-    // 等待位置过渡完成后，再切换到空闲状态
-    // 过渡使用 lerp 指数衰减：transitionSpeed=0.1 时约 30 帧(0.5s)到达 96%
-    // 参数过渡 + 位置过渡总计约 1-1.5 秒，留 2 秒安全余量
-    setTimeout(() => {
+    showEndTimerRef.current = window.setTimeout(() => {
       console.log('[App] Control: showEnd - switching to idle')
-      setDebugState('idle')
+      setDebugState(null)
       setFluidParams(statePresets.idle)
+      showEndTimerRef.current = null
     }, 2000)
   }, [])
 
@@ -113,8 +117,9 @@ function App() {
 
       // Transcribe after recording stops
       setTimeout(async () => {
-        if (audioBlob) {
-          const text = await transcribe(audioBlob)
+        const blob = audioBlobRef.current
+        if (blob) {
+          const text = await transcribe(blob)
           if (text) {
             await sendUserMessage(text)
           }
@@ -133,11 +138,12 @@ function App() {
     await sendUserMessage(text)
   }
 
-  // Speak when assistant message arrives
+  // Speak when assistant message arrives (防止重复触发)
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
       const lastMessage = messages[messages.length - 1]
-      if (lastMessage.role === 'assistant' && !isLoading) {
+      if (lastMessage.role === 'assistant' && !isLoading && lastMessage.id !== spokenMessageIdRef.current) {
+        spokenMessageIdRef.current = lastMessage.id
         speak(lastMessage.content)
       }
       prevMessageCountRef.current = messages.length
@@ -145,22 +151,21 @@ function App() {
   }, [messages, isLoading, speak])
 
   // 状态预设模式切换处理
-  const handlePresetToggle = () => {
-    setUsePreset(!usePreset)
-  }
+  const handlePresetToggle = useCallback(() => {
+    setUsePreset(prev => !prev)
+  }, [])
 
   // 调试状态切换
-  const handleStateChange = (state: ZedState) => {
+  const handleStateChange = useCallback((state: ZedState) => {
     console.log('[App] handleStateChange called with state:', state)
     setDebugState(state)
     setFluidParams(statePresets[state])
-    console.log('[App] setFluidParams called with:', statePresets[state])
-  }
+  }, [])
 
-  // 当用户开始新的交互时，清除调试状态
+  // 当用户开始新的交互时，清除调试状态（让 auto-state 接管）
   useEffect(() => {
     if (isRecording || isLoading || isSpeaking) {
-      setDebugState('idle')
+      setDebugState(null)
     }
   }, [isRecording, isLoading, isSpeaking])
 
@@ -218,11 +223,7 @@ function App() {
       />
 
       {/* Hidden audio element for TTS */}
-      <audio ref={(el) => {
-        if (el) {
-          (audioRef as React.MutableRefObject<HTMLAudioElement | null>).current = el
-        }
-      }} style={{ display: 'none' }} />
+      <audio ref={audioRef} style={{ display: 'none' }} />
 
       {/* Debug Log Display */}
       <LogDisplay />

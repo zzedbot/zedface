@@ -2,7 +2,7 @@
 
 import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders'
-import type { FluidParams } from '../components/ControlPanel'
+import type { FluidParams } from '../types'
 import { logger } from '../utils/Logger'
 
 // 简单的线性插值
@@ -36,7 +36,6 @@ export class FluidParticles {
   // 展示模式相关
   private showTargetPositions: Float32Array | null = null
   private isShowMode: boolean = false
-  private showTransitionProgress: number = 0
   private isExitingShowMode: boolean = false // 标记是否正在退出展示模式
   private sphereTargetPositions: Float32Array | null = null // 退出展示模式时的球体目标位置
 
@@ -104,7 +103,6 @@ export class FluidParticles {
     this.uniforms = {
       uTime: { value: 0 },
       uAudioIntensity: { value: 0 },
-      uMouse: { value: new THREE.Vector2(0, 0) },
       uAnimSpeed: { value: this.currentParams.animSpeed },
       uBreathSpeed: { value: this.currentParams.breathSpeed },
       uBreathAmplitude: { value: this.currentParams.breathAmplitude },
@@ -141,7 +139,7 @@ export class FluidParticles {
 
     // 使用简单的线性插值，让过渡速度真正可控
     // transitionSpeed 表示每帧移动的比例（0.01 = 1%，需要约100帧 = 1.67秒）
-    const transitionSpeed = this.targetParams.transitionSpeed || 0.08
+    const transitionSpeed = this.targetParams.transitionSpeed ?? 0.08
 
     // 对于关键参数（如半径），使用稍快的速度
     this.currentParams.radius = lerp(this.currentParams.radius, this.targetParams.radius, transitionSpeed * 1.5)
@@ -171,6 +169,9 @@ export class FluidParticles {
       this.currentParams.particleCount = this.targetParams.particleCount
       this.currentParams.particleSides = this.targetParams.particleSides
 
+      // 重建前清理所有模式状态
+      this.resetModeState()
+
       // 重建粒子
       if (this.particles) {
         this.particles.geometry.dispose()
@@ -179,8 +180,9 @@ export class FluidParticles {
       }
       this.createParticles()
     }
-    // 如果半径变化了，更新粒子位置
-    else if (radiusChanged && this.particles && this.particleDirections) {
+    // 如果半径变化了，更新粒子位置（仅在非模式状态下，避免破坏展示/监听模式的平滑过渡）
+    else if (radiusChanged && this.particles && this.particleDirections
+             && !this.isShowMode && !this.isEnteringShowMode && !this.isExitingShowMode && !this.isListeningMode) {
       const posAttr = this.particles.geometry.attributes.position
       const positions = posAttr.array as Float32Array
       const radius = this.currentParams.radius
@@ -195,21 +197,7 @@ export class FluidParticles {
     }
 
     // 更新 shader uniforms
-    this.uniforms.uAnimSpeed.value = this.currentParams.animSpeed
-    this.uniforms.uBreathSpeed.value = this.currentParams.breathSpeed
-    this.uniforms.uBreathAmplitude.value = this.currentParams.breathAmplitude
-    this.uniforms.uNoiseAmplitude.value = this.currentParams.noiseAmplitude
-    this.uniforms.uColorMixSpeed.value = this.currentParams.colorMixSpeed
-    this.uniforms.uGlowIntensity.value = this.currentParams.glowIntensity
-    this.uniforms.uAlphaBase.value = this.currentParams.alphaBase
-    this.uniforms.uParticleSize.value = this.currentParams.particleSize
-    this.uniforms.uParticleSides.value = this.currentParams.particleSides
-
-    // 更新颜色 uniforms
-    const primaryRgb = hexToRgb(this.currentParams.primaryColor)
-    const secondaryRgb = hexToRgb(this.currentParams.secondaryColor)
-    this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
-    this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
+    this.syncUniforms()
 
     // 进入展示模式处理（等待参数过渡完成后开始位置过渡）
     if (this.isEnteringShowMode && this.pendingShowPositions && this.particles) {
@@ -225,7 +213,6 @@ export class FluidParticles {
         this.isShowMode = true
         this.isEnteringShowMode = false
         this.pendingShowPositions = null
-        this.showTransitionProgress = 0
       } else {
         // 参数还在过渡中，保持当前状态
         this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
@@ -233,8 +220,6 @@ export class FluidParticles {
     }
     // 展示模式处理
     else if (this.isShowMode && this.showTargetPositions && this.particles) {
-      // 逐渐增加过渡进度
-      this.showTransitionProgress = Math.min(1, this.showTransitionProgress + 0.02)
 
       const posAttr = this.particles.geometry.attributes.position
       const positions = posAttr.array as Float32Array
@@ -323,6 +308,27 @@ export class FluidParticles {
     }
   }
 
+  /**
+   * 同步所有 uniforms 到 GPU（避免 update/updateParams 重复代码）
+   */
+  private syncUniforms(): void {
+    const p = this.currentParams
+    this.uniforms.uAnimSpeed.value = p.animSpeed
+    this.uniforms.uBreathSpeed.value = p.breathSpeed
+    this.uniforms.uBreathAmplitude.value = p.breathAmplitude
+    this.uniforms.uNoiseAmplitude.value = p.noiseAmplitude
+    this.uniforms.uColorMixSpeed.value = p.colorMixSpeed
+    this.uniforms.uGlowIntensity.value = p.glowIntensity
+    this.uniforms.uAlphaBase.value = p.alphaBase
+    this.uniforms.uParticleSize.value = p.particleSize
+    this.uniforms.uParticleSides.value = p.particleSides
+
+    const primaryRgb = hexToRgb(p.primaryColor)
+    const secondaryRgb = hexToRgb(p.secondaryColor)
+    this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
+    this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
+  }
+
   // 设置目标参数（触发平滑过渡）
   setTargetParams(params: FluidParams) {
     logger.log(`[FluidParticles] setTargetParams called, animSpeed: ${params.animSpeed}, noiseAmplitude: ${params.noiseAmplitude}, radius: ${params.radius}, size: ${params.particleSize}`)
@@ -335,21 +341,10 @@ export class FluidParticles {
     this.currentParams = { ...params }
 
     // 立即更新 uniforms
-    this.uniforms.uAnimSpeed.value = params.animSpeed
-    this.uniforms.uBreathSpeed.value = params.breathSpeed
-    this.uniforms.uBreathAmplitude.value = params.breathAmplitude
-    this.uniforms.uNoiseAmplitude.value = params.noiseAmplitude
-    this.uniforms.uColorMixSpeed.value = params.colorMixSpeed
-    this.uniforms.uGlowIntensity.value = params.glowIntensity
-    this.uniforms.uAlphaBase.value = params.alphaBase
-    this.uniforms.uParticleSize.value = params.particleSize
-    this.uniforms.uParticleSides.value = params.particleSides
+    this.syncUniforms()
 
-    // 更新颜色 uniforms
-    const primaryRgb = hexToRgb(params.primaryColor)
-    const secondaryRgb = hexToRgb(params.secondaryColor)
-    this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
-    this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
+    // 重建前清理所有模式状态
+    this.resetModeState()
 
     // 重建粒子
     if (this.particles) {
@@ -370,7 +365,6 @@ export class FluidParticles {
     this.pendingShowPositions = positions
     this.isEnteringShowMode = true
     this.isShowMode = false
-    this.showTransitionProgress = 0
     this.isExitingShowMode = false
   }
 
@@ -389,10 +383,24 @@ export class FluidParticles {
   exitShowMode(): void {
     logger.log(`[FluidParticles] Exiting show mode, currentRadius: ${this.currentParams.radius.toFixed(3)}, targetRadius: ${this.targetParams.radius.toFixed(3)}, currentSize: ${this.currentParams.particleSize.toFixed(3)}, targetSize: ${this.targetParams.particleSize.toFixed(3)}`)
     this.isShowMode = false
-    this.showTransitionProgress = 0
     this.isExitingShowMode = true
     this.isEnteringShowMode = false
     this.pendingShowPositions = null
+    this.sphereTargetPositions = null
+  }
+
+  /**
+   * 重置所有模式状态（粒子重建前调用）
+   */
+  private resetModeState(): void {
+    this.isShowMode = false
+    this.isEnteringShowMode = false
+    this.isExitingShowMode = false
+    this.isListeningMode = false
+    this.showTargetPositions = null
+    this.pendingShowPositions = null
+    this.sphereTargetPositions = null
+    this.frequencyData = null
   }
 
   /**

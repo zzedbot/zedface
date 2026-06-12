@@ -1,6 +1,6 @@
 // src/components/SubtitleDisplay.tsx
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import type { Message } from '../types'
 
 interface SubtitleDisplayProps {
@@ -10,29 +10,53 @@ interface SubtitleDisplayProps {
 
 export function SubtitleDisplay({ currentMessage, isStreaming = false }: SubtitleDisplayProps) {
   const [displayText, setDisplayText] = useState('')
+  const prevContentRef = useRef('')
+  const messageIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (!currentMessage) {
       setDisplayText('')
+      prevContentRef.current = ''
+      messageIdRef.current = null
       return
+    }
+
+    // 新消息（ID 变化）：重置打字机
+    if (messageIdRef.current !== currentMessage.id) {
+      messageIdRef.current = currentMessage.id
+      prevContentRef.current = ''
+      setDisplayText('')
     }
 
     if (!isStreaming) {
+      // 非流式：直接显示完整内容
       setDisplayText(currentMessage.content)
+      prevContentRef.current = currentMessage.content
       return
     }
 
-    // Typewriter effect
-    setDisplayText('')
-    let index = 0
-    const text = currentMessage.content
+    // 流式：仅对新增字符执行打字机效果
+    const prevLen = prevContentRef.current.length
+    const fullText = currentMessage.content
 
+    if (fullText.length <= prevLen) {
+      // 内容没有增长，不做任何事
+      return
+    }
+
+    // 先显示已有的前缀
+    const prefix = fullText.slice(0, prevLen)
+    const newText = fullText.slice(prevLen)
+    setDisplayText(prefix)
+
+    let index = 0
     const interval = setInterval(() => {
-      if (index < text.length) {
-        setDisplayText(text.slice(0, index + 1))
+      if (index < newText.length) {
+        setDisplayText(prefix + newText.slice(0, index + 1))
         index++
       } else {
         clearInterval(interval)
+        prevContentRef.current = fullText
       }
     }, 30)
 
@@ -45,6 +69,9 @@ export function SubtitleDisplay({ currentMessage, isStreaming = false }: Subtitl
 
   return (
     <div
+      role="log"
+      aria-live="polite"
+      aria-atomic="false"
       style={{
         position: 'absolute',
         bottom: '100px',

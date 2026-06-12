@@ -55,8 +55,9 @@ button {
   font: inherit;
 }
 
-button:focus {
-  outline: none;
+button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 button:active {
@@ -92,4 +93,10 @@ button:active {
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(78, 205, 196, 0.3) rgba(0, 0, 0, 0.2);
+}
+
+/* 状态指示器脉冲动画 */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

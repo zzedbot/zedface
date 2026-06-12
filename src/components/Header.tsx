@@ -1,5 +1,6 @@
 // src/components/Header.tsx
 
+import { stateInfo } from '../zed/statePresets'
 import type { ZedState } from '../types'
 
 interface HeaderProps {
@@ -7,39 +8,15 @@ interface HeaderProps {
 }
 
 export function Header({ zedState }: HeaderProps) {
-  const getStatusText = () => {
-    switch (zedState) {
-      case 'listening':
-        return '聆听中'
-      case 'thinking':
-        return '思考中'
-      case 'speaking':
-        return '回应中'
-      default:
-        return '在线'
-    }
-  }
-
-  const getStatusColor = () => {
-    switch (zedState) {
-      case 'listening':
-        return '#ff6b6b'
-      case 'thinking':
-        return '#ffd93d'
-      case 'speaking':
-        return '#4ecdc4'
-      default:
-        return '#4ecdc4'
-    }
-  }
+  const statusText = stateInfo[zedState]?.label || '未知'
+  const statusColor = stateInfo[zedState]?.color || '#4ecdc4'
 
   return (
     <header
+      role="banner"
       style={{
         position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
+        top: 0, left: 0, right: 0,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
@@ -61,6 +38,8 @@ export function Header({ zedState }: HeaderProps) {
       </div>
 
       <div
+        role="status"
+        aria-label={`当前状态: ${statusText}`}
         style={{
           position: 'absolute',
           right: '24px',
@@ -74,22 +53,13 @@ export function Header({ zedState }: HeaderProps) {
             width: '8px',
             height: '8px',
             borderRadius: '50%',
-            background: getStatusColor(),
-            boxShadow: `0 0 8px ${getStatusColor()}`,
+            background: statusColor,
+            boxShadow: `0 0 8px ${statusColor}`,
             animation: zedState !== 'idle' ? 'pulse 1.5s infinite' : 'none',
           }}
         />
-        <span style={{ fontSize: '12px', color: '#888' }}>
-          {getStatusText()}
-        </span>
+        <span style={{ fontSize: '12px', color: '#888' }}>{statusText}</span>
       </div>
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `}</style>
     </header>
   )
 }

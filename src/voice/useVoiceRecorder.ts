@@ -11,17 +11,33 @@ export function useVoiceRecorder() {
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
 
-  // 组件卸载时停止所有轨道
+  // 组件卸载时彻底清理
   useEffect(() => {
     return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try { mediaRecorderRef.current.stop() } catch (_) { /* ignore */ }
+      }
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
       }
     }
   }, [])
 
   const startRecording = useCallback(async () => {
+    // 防止重复调用
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      console.warn('[useVoiceRecorder] Already recording')
+      return
+    }
+
     try {
+      // 清理旧流（如果有）
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop())
+        streamRef.current = null
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
       setMediaStream(stream)
@@ -37,11 +53,14 @@ export function useVoiceRecorder() {
       }
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const mimeType = mediaRecorder.mimeType || 'audio/webm'
+        const blob = new Blob(chunksRef.current, { type: mimeType })
         setAudioBlob(blob)
-        setAudioUrl(URL.createObjectURL(blob))
-        // 不停用 stream，analyser 可能还需要
-        // stream 的生命周期由 useAudioAnalyser 或组件卸载管理
+        // 清理旧 URL 再创建新的
+        setAudioUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return URL.createObjectURL(blob)
+        })
       }
 
       mediaRecorder.start()
@@ -52,21 +71,21 @@ export function useVoiceRecorder() {
   }, [])
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
     }
-  }, [isRecording])
+  }, [])
 
   const clearRecording = useCallback(() => {
     setAudioBlob(null)
-    if (audioUrl) {
-      URL.revokeObjectURL(audioUrl)
-    }
-    setAudioUrl(null)
-  }, [audioUrl])
+    setAudioUrl(prev => {
+      if (prev) URL.revokeObjectURL(prev)
+      return null
+    })
+  }, [])
 
-  // 释放 MediaStream
+  // 释放 MediaStream（转录完成后可调用）
   const releaseStream = useCallback(() => {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())

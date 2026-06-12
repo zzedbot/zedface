@@ -1,5 +1,6 @@
 // src/components/HistoryPanel.tsx
 
+import { useEffect, useRef } from 'react'
 import type { Message } from '../types'
 
 interface HistoryPanelProps {
@@ -9,36 +10,69 @@ interface HistoryPanelProps {
 }
 
 export function HistoryPanel({ isOpen, messages, onClose }: HistoryPanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Escape 键关闭 + 焦点陷阱
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      // 焦点陷阱
+      if (e.key === 'Tab' && panelRef.current) {
+        const focusable = panelRef.current.querySelectorAll<HTMLElement>('button, [tabindex]')
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault()
+          first.focus()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    // 自动聚焦关闭按钮
+    setTimeout(() => panelRef.current?.querySelector<HTMLElement>('button')?.focus(), 50)
+
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  if (!isOpen) return null
+
   return (
     <>
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          onClick={onClose}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 20,
-          }}
-        />
-      )}
-
-      {/* Panel */}
       <div
+        onClick={onClose}
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 20,
+        }}
+      />
+
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="历史对话"
         style={{
           position: 'fixed',
           top: 0,
-          right: isOpen ? 0 : '-400px',
+          right: 0,
           width: '400px',
           height: '100vh',
           background: 'linear-gradient(180deg, #1a0a2e, #302b63)',
           borderLeft: '1px solid rgba(78, 205, 196, 0.2)',
           boxShadow: '-5px 0 30px rgba(0, 0, 0, 0.5)',
-          transition: 'right 0.3s ease',
           zIndex: 21,
           display: 'flex',
           flexDirection: 'column',
@@ -65,6 +99,7 @@ export function HistoryPanel({ isOpen, messages, onClose }: HistoryPanelProps) {
           </h2>
           <button
             onClick={onClose}
+            aria-label="关闭历史对话"
             style={{
               fontSize: '20px',
               color: '#888',

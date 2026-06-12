@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import { FluidParticles } from './FluidParticles'
 import { ShowManager } from '../show/ShowManager'
 import { logger } from '../utils/Logger'
-import type { FluidParams } from '../components/ControlPanel'
+import type { FluidParams } from '../types'
 
 interface ShowContent {
   type: 'text' | 'emoji' | 'image' | 'shape'
@@ -50,17 +50,17 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
 
   // Update params when they change (keep current radius and particleSize from control panel)
   useEffect(() => {
-    console.log('[ZedAvatar] params changed, smooth:', smooth, 'animSpeed:', params.animSpeed)
+    logger.log('[ZedAvatar] params changed, smooth:', smooth, 'animSpeed:', params.animSpeed)
     if (particlesRef.current) {
       if (smooth) {
-        console.log('[ZedAvatar] calling setTargetParams')
+        logger.log('[ZedAvatar] calling setTargetParams')
         particlesRef.current.setTargetParams(params)
       } else {
-        console.log('[ZedAvatar] calling updateParams')
+        logger.log('[ZedAvatar] calling updateParams')
         particlesRef.current.updateParams(params)
       }
     } else {
-      console.log('[ZedAvatar] particlesRef.current is null')
+      logger.log('[ZedAvatar] particlesRef.current is null')
     }
   }, [params, smooth])
 

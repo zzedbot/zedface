@@ -1,5 +1,5 @@
 // src/zed/statePresets.ts
-import type { FluidParams } from '../components/ControlPanel'
+import type { FluidParams } from '../types'
 import type { ZedState } from '../types'
 
 // 统一预设值（所有状态共享）
@@ -53,7 +53,7 @@ export const statePresets: Record<ZedState, FluidParams> = {
     particleSize: UNIFIED_PARTICLE_SIZE,
     particleSides: 0, // 圆形
     radius: UNIFIED_RADIUS,
-    animSpeed: 2.0,
+    animSpeed: 0.1,
     noiseAmplitude: 0.05,
     breathSpeed: 0.3,
     breathAmplitude: 0.02,
@@ -181,15 +181,15 @@ export const statePresets: Record<ZedState, FluidParams> = {
   },
 }
 
-// 状态显示信息
+// 状态显示信息（color 与 statePresets.primaryColor 保持一致）
 export const stateInfo: Record<ZedState, { label: string; color: string }> = {
-  intro: { label: '初始化', color: '#888888' },
+  intro: { label: '初始化', color: '#4ecdc4' },
   idle: { label: '空闲', color: '#4ecdc4' },
   offline: { label: '离线', color: '#2a2a4a' },
   reconnecting: { label: '重连中', color: '#4ecdc4' },
   listening: { label: '倾听中', color: '#ff6b6b' },
-  thinking: { label: '思考中', color: '#ffd93d' },
+  thinking: { label: '思考中', color: '#4ecdc4' },
   speaking: { label: '回复中', color: '#4ecdc4' },
-  error: { label: '错误', color: '#ff4444' },
-  show: { label: '展示', color: '#ffffff' },
+  error: { label: '错误', color: '#ff4757' },
+  show: { label: '展示', color: '#4ecdc4' },
 }

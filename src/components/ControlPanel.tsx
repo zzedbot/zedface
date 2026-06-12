@@ -1,45 +1,22 @@
 // src/components/ControlPanel.tsx
 
-import { useState } from 'react'
+import { useState, type CSSProperties, type ChangeEvent } from 'react'
 import { stateInfo, statePresets } from '../zed/statePresets'
-import type { ZedState } from '../types'
+import type { ZedState, FluidParams } from '../types'
 
-export interface FluidParams {
-  // Particle settings
-  particleCount: number
-  particleSize: number
-  particleSides: number // 0=circle, 3=triangle, 4=square, 5=pentagon...
-  radius: number
-
-  // Animation
-  animSpeed: number
-  breathSpeed: number
-  breathAmplitude: number
-  noiseAmplitude: number
-  rotationSpeed: number
-
-  // Transition
-  transitionSpeed: number // 状态切换过渡速度 (0.01-0.3)
-
-  // Visual
-  colorMixSpeed: number
-  glowIntensity: number
-  alphaBase: number
-  primaryColor: string
-  secondaryColor: string
-}
+export type { FluidParams }
 
 export const defaultFluidParams: FluidParams = {
   particleCount: 6000,
   particleSize: 15.0,
-  particleSides: 0, // 0=circle, 3=triangle, 4=square...
+  particleSides: 0,
   radius: 1.5,
   animSpeed: 0.8,
   breathSpeed: 1.2,
   breathAmplitude: 0.15,
   noiseAmplitude: 0.5,
   rotationSpeed: 0.15,
-  transitionSpeed: 0.08, // 默认过渡速度
+  transitionSpeed: 0.08,
   colorMixSpeed: 0.5,
   glowIntensity: 0.5,
   alphaBase: 0.6,
@@ -59,6 +36,129 @@ interface ControlPanelProps {
   onCancelShow?: () => void
 }
 
+// 提取样式常量（避免每次渲染重建）
+const styles = {
+  toggleBtn: {
+    position: 'fixed' as const,
+    top: '16px',
+    left: '16px',
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '16px',
+    color: '#888',
+    zIndex: 100,
+    backdropFilter: 'blur(10px)',
+  },
+  panel: {
+    position: 'fixed' as const,
+    top: '60px',
+    width: '300px',
+    padding: '20px',
+    background: 'rgba(15, 12, 41, 0.9)',
+    backdropFilter: 'blur(20px)',
+    border: '1px solid rgba(78, 205, 196, 0.2)',
+    borderRadius: '12px',
+    zIndex: 99,
+    transition: 'left 0.3s ease',
+    maxHeight: 'calc(100vh - 80px)',
+    overflowY: 'auto' as const,
+  },
+  row: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '12px',
+    gap: '12px',
+  } as CSSProperties,
+  label: {
+    fontSize: '12px',
+    color: '#4ecdc4',
+    minWidth: '100px',
+  } as CSSProperties,
+  value: {
+    fontSize: '11px',
+    color: '#888',
+    minWidth: '40px',
+    textAlign: 'right' as const,
+  },
+  slider: {
+    width: '100%',
+    height: '4px',
+    borderRadius: '2px',
+    background: 'rgba(78, 205, 196, 0.2)',
+    outline: 'none',
+    appearance: 'none' as const,
+    cursor: 'pointer',
+  },
+  sectionDivider: {
+    marginBottom: '16px',
+    paddingBottom: '16px',
+    borderBottom: '1px solid rgba(255,255,255,0.05)',
+  },
+  sectionTitle: {
+    fontSize: '11px',
+    color: '#666',
+    marginBottom: '8px',
+    textTransform: 'uppercase' as const,
+  },
+}
+
+// 通用滑块组件
+interface SliderControlProps {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  format?: (value: number) => string
+  onChange: (value: number) => void
+}
+
+function SliderControl({ label, value, min, max, step, format, onChange }: SliderControlProps) {
+  return (
+    <div style={styles.row}>
+      <span style={styles.label}>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e: ChangeEvent<HTMLInputElement>) => onChange(Number(e.target.value))}
+        style={styles.slider}
+        aria-label={label}
+      />
+      <span style={styles.value}>{format ? format(value) : value.toFixed(2)}</span>
+    </div>
+  )
+}
+
+// 粒子形状显示
+function formatParticleSides(sides: number): string {
+  const map: Record<number, string> = { 0: '圆', 3: '△', 4: '□', 5: '⬠', 6: '⬡' }
+  return map[sides] ?? `${sides}边`
+}
+
+// 展示类型
+type ShowType = 'text' | 'emoji' | 'image' | 'shape'
+const SHOW_TYPES: { key: ShowType; label: string }[] = [
+  { key: 'text', label: '文字' },
+  { key: 'emoji', label: 'Emoji' },
+  { key: 'image', label: '图片' },
+  { key: 'shape', label: '图形' },
+]
+
+const SHAPES = ['heart', 'star', 'circle', 'triangle', 'square'] as const
+const SHAPE_ICONS: Record<string, string> = {
+  heart: '❤️', star: '⭐', circle: '⚪', triangle: '△', square: '□',
+}
+
 export function ControlPanel({
   params,
   onChange,
@@ -71,99 +171,36 @@ export function ControlPanel({
   onCancelShow,
 }: ControlPanelProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const [showType, setShowType] = useState<'text' | 'emoji' | 'image' | 'shape'>('text')
+  const [showType, setShowType] = useState<ShowType>('text')
   const [showContent, setShowContent] = useState('Hello')
 
   const handleChange = (key: keyof FluidParams, value: number) => {
     onChange({ ...params, [key]: value })
   }
 
-  const stateLabel = stateInfo[currentState].label
-  const stateColor = stateInfo[currentState].color
+  const stateInfo_ = stateInfo[currentState]
   const allStates = Object.keys(statePresets) as ZedState[]
-
-  const sliderStyle = {
+  const inputStyle: CSSProperties = {
     width: '100%',
-    height: '4px',
-    borderRadius: '2px',
-    background: 'rgba(78, 205, 196, 0.2)',
-    outline: 'none',
-    appearance: 'none' as const,
-    cursor: 'pointer',
-  }
-
-  const rowStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '12px',
-    gap: '12px',
-  }
-
-  const labelStyle = {
-    fontSize: '12px',
-    color: '#4ecdc4',
-    minWidth: '100px',
-  }
-
-  const valueStyle = {
-    fontSize: '11px',
-    color: '#888',
-    minWidth: '40px',
-    textAlign: 'right' as const,
+    padding: '6px 8px',
+    background: 'rgba(0, 0, 0, 0.3)',
+    border: '1px solid rgba(78, 205, 196, 0.2)',
+    borderRadius: '4px',
+    color: '#e0e0ff',
+    marginBottom: '8px',
   }
 
   return (
     <>
-      {/* Toggle Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        style={{
-          position: 'fixed',
-          top: '16px',
-          left: '16px',
-          width: '36px',
-          height: '36px',
-          borderRadius: '50%',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          color: '#888',
-          zIndex: 100,
-          backdropFilter: 'blur(10px)',
-        }}
-        title="流体参数设置"
-      >
+      <button onClick={() => setIsOpen(!isOpen)} style={styles.toggleBtn} title="流体参数设置" aria-label="切换控制面板">
         ⚙
       </button>
 
-      {/* Panel */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '60px',
-          left: isOpen ? '16px' : '-320px',
-          width: '300px',
-          padding: '20px',
-          background: 'rgba(15, 12, 41, 0.9)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(78, 205, 196, 0.2)',
-          borderRadius: '12px',
-          zIndex: 99,
-          transition: 'left 0.3s ease',
-          maxHeight: 'calc(100vh - 80px)',
-          overflowY: 'auto',
-        }}
-      >
-        <h3 style={{ fontSize: '14px', color: '#4ecdc4', marginBottom: '16px' }}>
-          流体参数调节
-        </h3>
+      <div style={{ ...styles.panel, left: isOpen ? '16px' : '-320px' }}>
+        <h3 style={{ fontSize: '14px', color: '#4ecdc4', marginBottom: '16px' }}>流体参数调节</h3>
 
         {/* Mode Toggle */}
-        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={styles.sectionDivider}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <span style={{ fontSize: '12px', color: '#888' }}>模式</span>
             <button
@@ -186,12 +223,9 @@ export function ControlPanel({
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                 <span style={{ fontSize: '11px', color: '#666' }}>当前状态:</span>
-                <span style={{ fontSize: '12px', color: stateColor, fontWeight: 'bold' }}>
-                  {stateLabel}
-                </span>
+                <span style={{ fontSize: '12px', color: stateInfo_.color, fontWeight: 'bold' }}>{stateInfo_.label}</span>
               </div>
 
-              {/* State Quick Switch Buttons */}
               <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>快速切换:</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '12px' }}>
                 {allStates.map((state) => {
@@ -201,6 +235,7 @@ export function ControlPanel({
                     <button
                       key={state}
                       onClick={() => onStateChange?.(state)}
+                      aria-label={`切换到${info.label}状态`}
                       style={{
                         padding: '6px 4px',
                         fontSize: '10px',
@@ -223,91 +258,45 @@ export function ControlPanel({
               <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(78, 205, 196, 0.05)', borderRadius: '6px', border: '1px solid rgba(78, 205, 196, 0.2)' }}>
                 <div style={{ fontSize: '11px', color: '#4ecdc4', marginBottom: '8px', fontWeight: 'bold' }}>📺 展示内容</div>
 
-                {/* Show Type Selection */}
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-                  {(['text', 'emoji', 'image', 'shape'] as const).map((type) => (
+                  {SHOW_TYPES.map(({ key, label }) => (
                     <button
-                      key={type}
-                      onClick={() => setShowType(type)}
+                      key={key}
+                      onClick={() => setShowType(key)}
                       style={{
                         flex: 1,
                         padding: '4px',
                         fontSize: '10px',
-                        background: showType === type ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${showType === type ? 'rgba(78, 205, 196, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
+                        background: showType === key ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                        border: `1px solid ${showType === key ? 'rgba(78, 205, 196, 0.5)' : 'rgba(255, 255, 255, 0.08)'}`,
                         borderRadius: '4px',
-                        color: showType === type ? '#4ecdc4' : '#888',
+                        color: showType === key ? '#4ecdc4' : '#888',
                         cursor: 'pointer',
                       }}
                     >
-                      {type === 'text' ? '文字' : type === 'emoji' ? 'Emoji' : type === 'image' ? '图片' : '图形'}
+                      {label}
                     </button>
                   ))}
                 </div>
 
-                {/* Content Input */}
                 {showType === 'text' && (
                   <textarea
                     value={showContent}
                     onChange={(e) => setShowContent(e.target.value)}
                     placeholder="输入文字内容，支持换行（回车键）"
                     rows={3}
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      border: '1px solid rgba(78, 205, 196, 0.2)',
-                      borderRadius: '4px',
-                      color: '#e0e0ff',
-                      fontSize: '11px',
-                      marginBottom: '8px',
-                      resize: 'vertical',
-                      fontFamily: 'inherit',
-                    }}
+                    style={{ ...inputStyle, fontSize: '11px', resize: 'vertical', fontFamily: 'inherit' }}
                   />
                 )}
-
                 {showType === 'emoji' && (
-                  <input
-                    type="text"
-                    value={showContent}
-                    onChange={(e) => setShowContent(e.target.value)}
-                    placeholder="输入 Emoji，如 😀 🎉 ❤️"
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      border: '1px solid rgba(78, 205, 196, 0.2)',
-                      borderRadius: '4px',
-                      color: '#e0e0ff',
-                      fontSize: '14px',
-                      marginBottom: '8px',
-                    }}
-                  />
+                  <input type="text" value={showContent} onChange={(e) => setShowContent(e.target.value)} placeholder="输入 Emoji，如 😀 🎉 ❤️" style={{ ...inputStyle, fontSize: '14px' }} />
                 )}
-
                 {showType === 'image' && (
-                  <input
-                    type="text"
-                    value={showContent}
-                    onChange={(e) => setShowContent(e.target.value)}
-                    placeholder="输入图片 URL 或 Base64"
-                    style={{
-                      width: '100%',
-                      padding: '6px 8px',
-                      background: 'rgba(0, 0, 0, 0.3)',
-                      border: '1px solid rgba(78, 205, 196, 0.2)',
-                      borderRadius: '4px',
-                      color: '#e0e0ff',
-                      fontSize: '10px',
-                      marginBottom: '8px',
-                    }}
-                  />
+                  <input type="text" value={showContent} onChange={(e) => setShowContent(e.target.value)} placeholder="输入图片 URL 或 Base64" style={{ ...inputStyle, fontSize: '10px' }} />
                 )}
-
                 {showType === 'shape' && (
                   <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
-                    {['heart', 'star', 'circle', 'triangle', 'square'].map((shape) => (
+                    {SHAPES.map((shape) => (
                       <button
                         key={shape}
                         onClick={() => setShowContent(shape)}
@@ -322,58 +311,31 @@ export function ControlPanel({
                           cursor: 'pointer',
                         }}
                       >
-                        {shape === 'heart' ? '❤️' : shape === 'star' ? '⭐' : shape === 'circle' ? '⚪' : shape === 'triangle' ? '△' : '□'}
+                        {SHAPE_ICONS[shape]}
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* Show/Cancel/End Buttons */}
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     onClick={() => onShow?.(showType, showContent)}
                     disabled={!showContent}
+                    aria-label="展示内容"
                     style={{
-                      flex: 1,
-                      padding: '6px',
+                      flex: 1, padding: '6px',
                       background: showContent ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(78, 205, 196, 0.3)',
-                      borderRadius: '4px',
-                      color: showContent ? '#4ecdc4' : '#666',
-                      fontSize: '11px',
+                      border: '1px solid rgba(78, 205, 196, 0.3)', borderRadius: '4px',
+                      color: showContent ? '#4ecdc4' : '#666', fontSize: '11px',
                       cursor: showContent ? 'pointer' : 'not-allowed',
                     }}
                   >
                     展示
                   </button>
-                  <button
-                    onClick={() => onCancelShow?.()}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: 'rgba(255, 165, 2, 0.1)',
-                      border: '1px solid rgba(255, 165, 2, 0.3)',
-                      borderRadius: '4px',
-                      color: '#ffa502',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                    }}
-                  >
+                  <button onClick={() => onCancelShow?.()} aria-label="取消展示" style={{ flex: 1, padding: '6px', background: 'rgba(255, 165, 2, 0.1)', border: '1px solid rgba(255, 165, 2, 0.3)', borderRadius: '4px', color: '#ffa502', fontSize: '11px', cursor: 'pointer' }}>
                     取消
                   </button>
-                  <button
-                    onClick={() => onShowEnd?.()}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: 'rgba(255, 107, 107, 0.1)',
-                      border: '1px solid rgba(255, 107, 107, 0.3)',
-                      borderRadius: '4px',
-                      color: '#ff6b6b',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                    }}
-                  >
+                  <button onClick={() => onShowEnd?.()} aria-label="结束展示" style={{ flex: 1, padding: '6px', background: 'rgba(255, 107, 107, 0.1)', border: '1px solid rgba(255, 107, 107, 0.3)', borderRadius: '4px', color: '#ff6b6b', fontSize: '11px', cursor: 'pointer' }}>
                     结束
                   </button>
                 </div>
@@ -382,261 +344,52 @@ export function ControlPanel({
           )}
 
           {!usePreset && (
-            <div style={{ fontSize: '11px', color: '#666', marginTop: '8px' }}>
-              手动调节参数，实时应用到粒子系统
-            </div>
+            <div style={{ fontSize: '11px', color: '#666', marginTop: '8px' }}>手动调节参数，实时应用到粒子系统</div>
           )}
         </div>
 
         {/* Particle Section */}
-        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>粒子</div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>粒子数量</span>
-            <input
-              type="range"
-              min="1000"
-              max="20000"
-              step="1000"
-              value={params.particleCount}
-              onChange={(e) => handleChange('particleCount', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.particleCount}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>球体半径</span>
-            <input
-              type="range"
-              min="1"
-              max="5"
-              step="0.1"
-              value={params.radius}
-              onChange={(e) => handleChange('radius', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.radius.toFixed(1)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>粒子大小</span>
-            <input
-              type="range"
-              min="1"
-              max="20"
-              step="0.5"
-              value={params.particleSize}
-              onChange={(e) => handleChange('particleSize', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.particleSize.toFixed(1)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>粒子形状</span>
-            <input
-              type="range"
-              min="0"
-              max="8"
-              step="1"
-              value={params.particleSides}
-              onChange={(e) => handleChange('particleSides', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>
-              {params.particleSides === 0 ? '圆' : params.particleSides === 3 ? '△' : params.particleSides === 4 ? '□' : params.particleSides === 5 ? '⬠' : params.particleSides === 6 ? '⬡' : `${params.particleSides}边`}
-            </span>
-          </div>
+        <div style={styles.sectionDivider}>
+          <div style={styles.sectionTitle}>粒子</div>
+          <SliderControl label="粒子数量" value={params.particleCount} min={1000} max={20000} step={1000} format={(v) => String(v)} onChange={(v) => handleChange('particleCount', v)} />
+          <SliderControl label="球体半径" value={params.radius} min={1} max={5} step={0.1} onChange={(v) => handleChange('radius', v)} />
+          <SliderControl label="粒子大小" value={params.particleSize} min={1} max={20} step={0.5} onChange={(v) => handleChange('particleSize', v)} />
+          <SliderControl label="粒子形状" value={params.particleSides} min={0} max={8} step={1} format={formatParticleSides} onChange={(v) => handleChange('particleSides', v)} />
         </div>
 
         {/* Animation Section */}
-        <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>动画</div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>动画速度</span>
-            <input
-              type="range"
-              min="0.1"
-              max="2"
-              step="0.1"
-              value={params.animSpeed}
-              onChange={(e) => handleChange('animSpeed', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.animSpeed.toFixed(1)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>噪声幅度</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={params.noiseAmplitude}
-              onChange={(e) => handleChange('noiseAmplitude', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.noiseAmplitude.toFixed(2)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>呼吸速度</span>
-            <input
-              type="range"
-              min="0.5"
-              max="3"
-              step="0.1"
-              value={params.breathSpeed}
-              onChange={(e) => handleChange('breathSpeed', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.breathSpeed.toFixed(1)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>呼吸幅度</span>
-            <input
-              type="range"
-              min="0"
-              max="0.3"
-              step="0.01"
-              value={params.breathAmplitude}
-              onChange={(e) => handleChange('breathAmplitude', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.breathAmplitude.toFixed(2)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>旋转速度</span>
-            <input
-              type="range"
-              min="0"
-              max="0.5"
-              step="0.01"
-              value={params.rotationSpeed}
-              onChange={(e) => handleChange('rotationSpeed', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.rotationSpeed.toFixed(2)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>过渡速度</span>
-            <input
-              type="range"
-              min="0.01"
-              max="0.3"
-              step="0.01"
-              value={params.transitionSpeed}
-              onChange={(e) => handleChange('transitionSpeed', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.transitionSpeed.toFixed(2)}</span>
-          </div>
+        <div style={styles.sectionDivider}>
+          <div style={styles.sectionTitle}>动画</div>
+          <SliderControl label="动画速度" value={params.animSpeed} min={0.1} max={2} step={0.1} onChange={(v) => handleChange('animSpeed', v)} />
+          <SliderControl label="噪声幅度" value={params.noiseAmplitude} min={0} max={1} step={0.05} onChange={(v) => handleChange('noiseAmplitude', v)} />
+          <SliderControl label="呼吸速度" value={params.breathSpeed} min={0.5} max={3} step={0.1} onChange={(v) => handleChange('breathSpeed', v)} />
+          <SliderControl label="呼吸幅度" value={params.breathAmplitude} min={0} max={0.3} step={0.01} onChange={(v) => handleChange('breathAmplitude', v)} />
+          <SliderControl label="旋转速度" value={params.rotationSpeed} min={0} max={0.5} step={0.01} onChange={(v) => handleChange('rotationSpeed', v)} />
+          <SliderControl label="过渡速度" value={params.transitionSpeed} min={0.01} max={0.3} step={0.01} onChange={(v) => handleChange('transitionSpeed', v)} />
         </div>
 
         {/* Visual Section */}
         <div>
-          <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px', textTransform: 'uppercase' }}>视觉</div>
+          <div style={styles.sectionTitle}>视觉</div>
+          <SliderControl label="颜色混合速度" value={params.colorMixSpeed} min={0.1} max={2} step={0.1} onChange={(v) => handleChange('colorMixSpeed', v)} />
+          <SliderControl label="辉光强度" value={params.glowIntensity} min={0} max={1} step={0.05} onChange={(v) => handleChange('glowIntensity', v)} />
+          <SliderControl label="基础透明度" value={params.alphaBase} min={0.1} max={1} step={0.05} onChange={(v) => handleChange('alphaBase', v)} />
 
-          <div style={rowStyle}>
-            <span style={labelStyle}>颜色混合速度</span>
-            <input
-              type="range"
-              min="0.1"
-              max="2"
-              step="0.1"
-              value={params.colorMixSpeed}
-              onChange={(e) => handleChange('colorMixSpeed', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.colorMixSpeed.toFixed(1)}</span>
+          <div style={styles.row}>
+            <span style={styles.label}>主色调</span>
+            <input type="color" value={params.primaryColor} onChange={(e) => onChange({ ...params, primaryColor: e.target.value })} aria-label="主色调" style={{ width: '40px', height: '24px', border: '1px solid rgba(78, 205, 196, 0.3)', borderRadius: '4px', background: 'transparent', cursor: 'pointer' }} />
+            <span style={styles.value}>{params.primaryColor}</span>
           </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>辉光强度</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={params.glowIntensity}
-              onChange={(e) => handleChange('glowIntensity', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.glowIntensity.toFixed(2)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>基础透明度</span>
-            <input
-              type="range"
-              min="0.1"
-              max="1"
-              step="0.05"
-              value={params.alphaBase}
-              onChange={(e) => handleChange('alphaBase', Number(e.target.value))}
-              style={sliderStyle}
-            />
-            <span style={valueStyle}>{params.alphaBase.toFixed(2)}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>主色调</span>
-            <input
-              type="color"
-              value={params.primaryColor}
-              onChange={(e) => onChange({ ...params, primaryColor: e.target.value })}
-              style={{
-                width: '40px',
-                height: '24px',
-                border: '1px solid rgba(78, 205, 196, 0.3)',
-                borderRadius: '4px',
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
-            />
-            <span style={valueStyle}>{params.primaryColor}</span>
-          </div>
-
-          <div style={rowStyle}>
-            <span style={labelStyle}>次色调</span>
-            <input
-              type="color"
-              value={params.secondaryColor}
-              onChange={(e) => onChange({ ...params, secondaryColor: e.target.value })}
-              style={{
-                width: '40px',
-                height: '24px',
-                border: '1px solid rgba(78, 205, 196, 0.3)',
-                borderRadius: '4px',
-                background: 'transparent',
-                cursor: 'pointer',
-              }}
-            />
-            <span style={valueStyle}>{params.secondaryColor}</span>
+          <div style={styles.row}>
+            <span style={styles.label}>次色调</span>
+            <input type="color" value={params.secondaryColor} onChange={(e) => onChange({ ...params, secondaryColor: e.target.value })} aria-label="次色调" style={{ width: '40px', height: '24px', border: '1px solid rgba(78, 205, 196, 0.3)', borderRadius: '4px', background: 'transparent', cursor: 'pointer' }} />
+            <span style={styles.value}>{params.secondaryColor}</span>
           </div>
         </div>
 
-        {/* Reset Button */}
         <button
           onClick={() => onChange(defaultFluidParams)}
-          style={{
-            marginTop: '16px',
-            width: '100%',
-            padding: '8px',
-            background: 'rgba(78, 205, 196, 0.1)',
-            border: '1px solid rgba(78, 205, 196, 0.3)',
-            borderRadius: '6px',
-            color: '#4ecdc4',
-            fontSize: '12px',
-            cursor: 'pointer',
-          }}
+          style={{ marginTop: '16px', width: '100%', padding: '8px', background: 'rgba(78, 205, 196, 0.1)', border: '1px solid rgba(78, 205, 196, 0.3)', borderRadius: '6px', color: '#4ecdc4', fontSize: '12px', cursor: 'pointer' }}
         >
           重置为默认值
         </button>
