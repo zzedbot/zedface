@@ -17,12 +17,13 @@ interface ZedAvatarProps {
   audioIntensity?: number
   params: FluidParams
   smooth?: boolean // 是否使用平滑过渡（状态预设模式）
+  stateId?: string // 当前状态 ID（驱动 StateBehavior 切换）
   showContent?: ShowContent | null // 展示内容
   frequencyData?: Uint8Array | null // 实时频域数据（监听模式用）
   onShowManagerReady?: (manager: ShowManager) => void // ShowManager 就绪回调
 }
 
-export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showContent, frequencyData, onShowManagerReady }: ZedAvatarProps) {
+export function ZedAvatar({ audioIntensity = 0, params, smooth = false, stateId, showContent, frequencyData, onShowManagerReady }: ZedAvatarProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
@@ -47,6 +48,14 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, showCont
   useEffect(() => {
     frequencyDataRef.current = frequencyData ?? null
   }, [frequencyData])
+
+  // 状态切换 → 通知 FluidParticles 切换 StateBehavior
+  useEffect(() => {
+    if (stateId && particlesRef.current) {
+      logger.log(`[ZedAvatar] State changed: ${stateId}`)
+      particlesRef.current.setState(stateId)
+    }
+  }, [stateId])
 
   // Update params when they change (keep current radius and particleSize from control panel)
   useEffect(() => {

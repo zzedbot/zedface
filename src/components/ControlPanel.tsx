@@ -1,7 +1,7 @@
 // src/components/ControlPanel.tsx
 
 import { useState, type CSSProperties, type ChangeEvent } from 'react'
-import { stateInfo, statePresets } from '../zed/statePresets'
+import { StateRegistry } from '../zed/states'
 import type { ZedState, FluidParams } from '../types'
 
 export type { FluidParams }
@@ -178,8 +178,9 @@ export function ControlPanel({
     onChange({ ...params, [key]: value })
   }
 
-  const stateInfo_ = stateInfo[currentState]
-  const allStates = Object.keys(statePresets) as ZedState[]
+  const currentBehavior = StateRegistry.get(currentState)
+  const stateInfo_ = { label: currentBehavior?.label ?? currentState, color: currentBehavior?.color ?? '#4ecdc4' }
+  const allStates = StateRegistry.getIds()
   const inputStyle: CSSProperties = {
     width: '100%',
     padding: '6px 8px',
@@ -228,27 +229,27 @@ export function ControlPanel({
 
               <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>快速切换:</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '12px' }}>
-                {allStates.map((state) => {
-                  const info = stateInfo[state]
-                  const isActive = currentState === state
+                {allStates.map((stateId) => {
+                  const behavior = StateRegistry.get(stateId)!
+                  const isActive = currentState === stateId
                   return (
                     <button
-                      key={state}
-                      onClick={() => onStateChange?.(state)}
-                      aria-label={`切换到${info.label}状态`}
+                      key={stateId}
+                      onClick={() => onStateChange?.(stateId)}
+                      aria-label={`切换到${behavior.label}状态`}
                       style={{
                         padding: '6px 4px',
                         fontSize: '10px',
-                        background: isActive ? `${info.color}22` : 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${isActive ? info.color : 'rgba(255, 255, 255, 0.08)'}`,
+                        background: isActive ? `${behavior.color}22` : 'rgba(255, 255, 255, 0.03)',
+                        border: `1px solid ${isActive ? behavior.color : 'rgba(255, 255, 255, 0.08)'}`,
                         borderRadius: '4px',
-                        color: isActive ? info.color : '#888',
+                        color: isActive ? behavior.color : '#888',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
                         textAlign: 'center' as const,
                       }}
                     >
-                      {info.label}
+                      {behavior.label}
                     </button>
                   )
                 })}

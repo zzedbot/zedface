@@ -38,13 +38,27 @@ src/
 │   └── types.ts                 # 组件类型定义
 ├── zed/                  # Three.js 流体粒子形象模块
 │   ├── ZedAvatar.tsx            # 3D 头像组件（Three.js 容器）
-│   ├── FluidParticles.ts      # 流体粒子系统核心类
+│   ├── FluidParticles.ts      # 流体粒子系统核心类（参数 lerp + 状态委托）
 │   ├── shaders.ts             # GLSL 着色器（顶点/片元）
-│   └── statePresets.ts        # 状态预设参数配置
+│   └── states/                # 可插拔状态系统
+│       ├── StateBehavior.ts   # 状态行为接口
+│       ├── StateRegistry.ts   # 状态注册表（单例）
+│       ├── index.ts           # 注册入口
+│       ├── IdleState.ts       # 空闲 — 普通球体（shader 驱动）
+│       ├── IntroState.ts      # 初始化 — 大半径分散
+│       ├── ListeningState.ts  # 倾听 — 3D 海胆球频谱
+│       ├── ThinkingState.ts   # 思考 — 高速噪点
+│       ├── SpeakingState.ts   # 回复 — 液态流溢
+│       ├── OfflineState.ts    # 离线 — 暗色低动
+│       ├── ReconnectingState.ts # 重连 — 六边形晶体
+│       ├── ErrorState.ts      # 错误 — 三角干扰
+│       └── ShowState.ts       # 展示 — 文字/图形粒子形态
 ├── show/                 # 展示功能模块
 │   └── ShowManager.ts         # 展示管理器（文字/Emoji/图片/图形）
 ├── voice/                # 语音处理模块
+│   ├── audioManager.ts        # AudioContext 共享管理器（避免多实例）
 │   ├── WaveformDisplay.tsx    # 声波波形可视化
+│   ├── useAudioAnalyser.ts    # 实时频域数据 Hook
 │   ├── useVoiceRecorder.ts    # 录音 Hook
 │   ├── useWhisper.ts          # Whisper STT Hook
 │   ├── useKokoro.ts           # Kokoro TTS Hook
@@ -73,20 +87,32 @@ src/
 
 流体粒子系统核心类，负责：
 - **粒子创建和销毁**：根据参数创建粒子几何体和材质
-- **参数插值**：使用 lerp 实现参数平滑过渡（lerpSpeed = 0.03）
-- **状态管理**：
-  - `isEnteringShowMode`：正在进入展示模式（等待参数过渡完成）
-  - `isShowMode`：正在展示模式（粒子向目标位置过渡）
-  - `isExitingShowMode`：正在退出展示模式（等待参数过渡完成后恢复球体）
-- **展示功能**：
-  - `setShowContent(positions)`：设置展示内容，进入"等待参数过渡"状态
-  - `cancelShow()`：取消展示，清除待展示的位置数据
-  - `exitShowMode()`：退出展示模式，恢复球体状态
+- **参数插值**：使用 lerp 实现参数平滑过渡
+- **状态委托**：通过 StateBehavior 接口将每帧位置更新委托给当前状态
+- **球体恢复**：当自定义位置状态切换到默认状态时，自动平滑恢复球体
+- **外部数据**：管理 frequencyData、showPositions 等，通过 StateContext 暴露给状态
 
 关键方法：
-- `update(time, audioIntensity)`：每帧更新，处理参数插值和粒子位置更新
+- `update(time, audioIntensity)`：每帧更新（参数 lerp → 重建检查 → uniform 同步 → 状态委托 → 旋转）
+- `setState(id)`：切换状态行为（调用 onExit/onEnter）
 - `setTargetParams(params)`：设置目标参数（触发平滑过渡）
 - `updateParams(params)`：立即设置参数（无过渡，用于手动调整）
+
+### 可插拔状态系统 (src/zed/states/)
+
+每个状态封装为独立文件，实现 `StateBehavior` 接口：
+- `preset`：该状态的参数预设
+- `onEnter(ctx, prev)`：状态激活时调用
+- `onExit(ctx)`：状态退出时调用
+- `update(ctx): boolean`：每帧更新，返回 true 表示修改了 positions
+
+**新增状态只需**：
+1. 在 `src/zed/states/` 创建 `XxxState.ts`
+2. 实现 `StateBehavior` 接口
+3. 在文件末尾调用 `StateRegistry.register(behavior)`
+4. 在 `src/zed/states/index.ts` 添加 `import './XxxState'`
+
+`StateContext` 提供：positions、normals、randomness、particleCount、baseRadius、frequencyData、audioIntensity、showPositions、time
 
 ### ShowManager (src/show/ShowManager.ts)
 

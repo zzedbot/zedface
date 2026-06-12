@@ -8,7 +8,8 @@ import { ControlPanel } from './components/ControlPanel'
 import { HistoryPanel } from './components/HistoryPanel'
 import { TextInput } from './components/TextInput'
 import { ZedAvatar } from './zed/ZedAvatar'
-import { statePresets } from './zed/statePresets'
+import { StateRegistry } from './zed/states'
+import './zed/states' // 触发状态注册
 import { useChat } from './hooks/useChat'
 import { useVoiceRecorder } from './voice/useVoiceRecorder'
 import { useAudioAnalyser } from './voice/useAudioAnalyser'
@@ -25,9 +26,12 @@ function App() {
   const { transcribe } = useWhisper()
   const { isSpeaking, speak, audioRef } = useKokoro()
 
+  // 获取状态预设的辅助函数
+  const getPreset = (stateId: string) => StateRegistry.get(stateId)?.preset ?? StateRegistry.get('idle')!.preset
+
   const [showHistory, setShowHistory] = useState(false)
   const [showTextInput, setShowTextInput] = useState(false)
-  const [fluidParams, setFluidParams] = useState<FluidParams>(statePresets.intro)
+  const [fluidParams, setFluidParams] = useState<FluidParams>(getPreset('intro'))
   const [usePreset, setUsePreset] = useState(true) // 默认使用状态预设模式
   const [debugState, setDebugState] = useState<ZedState | null>(null) // null = auto-state
   const [showContent, setShowContent] = useState<{
@@ -47,7 +51,7 @@ function App() {
   const handleControlStateChange = useCallback((state: ZedState) => {
     console.log('[App] Control: setState', state)
     setDebugState(state)
-    setFluidParams(statePresets[state])
+    setFluidParams(getPreset(state))
   }, [])
 
   const handleControlParamsChange = useCallback((params: Partial<FluidParams>) => {
@@ -58,7 +62,7 @@ function App() {
   const handleShow = useCallback((type: 'text' | 'emoji' | 'image' | 'shape', content: string, options?: any) => {
     console.log('[App] Control: show', type, content)
     setDebugState('show')
-    setFluidParams(statePresets.show)
+    setFluidParams(getPreset('show'))
     setShowContent({ type, content, options })
   }, [])
 
@@ -73,13 +77,18 @@ function App() {
     showEndTimerRef.current = window.setTimeout(() => {
       console.log('[App] Control: showEnd - switching to idle')
       setDebugState(null)
-      setFluidParams(statePresets.idle)
+      setFluidParams(getPreset('idle'))
       showEndTimerRef.current = null
     }, 2000)
   }, [])
 
   const handleCancelShow = useCallback(() => {
     console.log('[App] Control: cancelShow')
+    // 清除残留的 showEnd timer（防止竞态）
+    if (showEndTimerRef.current !== null) {
+      clearTimeout(showEndTimerRef.current)
+      showEndTimerRef.current = null
+    }
     setShowContent(null)
     // 保持 show 状态的参数，不恢复到 idle
   }, [])
@@ -159,7 +168,7 @@ function App() {
   const handleStateChange = useCallback((state: ZedState) => {
     console.log('[App] handleStateChange called with state:', state)
     setDebugState(state)
-    setFluidParams(statePresets[state])
+    setFluidParams(getPreset(state))
   }, [])
 
   // 当用户开始新的交互时，清除调试状态（让 auto-state 接管）
@@ -176,6 +185,7 @@ function App() {
         audioIntensity={isRecording || isSpeaking ? 0.5 : 0}
         params={activeParams}
         smooth={usePreset}
+        stateId={zedState}
         showContent={showContent}
         frequencyData={isRecording ? frequencyData : null}
       />

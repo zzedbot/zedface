@@ -1,6 +1,6 @@
 // src/components/Header.tsx
 
-import { stateInfo } from '../zed/statePresets'
+import { StateRegistry } from '../zed/states'
 import type { ZedState } from '../types'
 
 interface HeaderProps {
@@ -8,8 +8,9 @@ interface HeaderProps {
 }
 
 export function Header({ zedState }: HeaderProps) {
-  const statusText = stateInfo[zedState]?.label || '未知'
-  const statusColor = stateInfo[zedState]?.color || '#4ecdc4'
+  const behavior = StateRegistry.get(zedState)
+  const statusText = behavior?.label ?? zedState
+  const statusColor = behavior?.color ?? '#4ecdc4'
 
   return (
     <header

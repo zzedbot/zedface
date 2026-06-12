@@ -3,17 +3,17 @@
 import * as THREE from 'three'
 import { vertexShader, fragmentShader } from './shaders'
 import type { FluidParams } from '../types'
+import type { StateBehavior, StateContext } from './states/StateBehavior'
+import { StateRegistry } from './states/StateRegistry'
 import { logger } from '../utils/Logger'
 
-// 简单的线性插值
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
 
-// 十六进制颜色转 RGB
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-  if (!result) return { r: 0.306, g: 0.804, b: 0.769 } // fallback to #4ecdc4
+  if (!result) return { r: 0.306, g: 0.804, b: 0.769 }
   return {
     r: parseInt(result[1], 16) / 255,
     g: parseInt(result[2], 16) / 255,
@@ -26,27 +26,23 @@ export class FluidParticles {
   private particles: THREE.Points | null = null
   private uniforms: { [key: string]: THREE.IUniform } = {}
 
-  // 目标参数和当前插值参数
   private targetParams: FluidParams
   private currentParams: FluidParams
 
-  // 粒子方向向量（用于半径变化时的平滑过渡）
+  // 粒子方向向量（初始球体分布，用于球体恢复）
   private particleDirections: Float32Array | null = null
 
-  // 展示模式相关
-  private showTargetPositions: Float32Array | null = null
-  private isShowMode: boolean = false
-  private isExitingShowMode: boolean = false // 标记是否正在退出展示模式
-  private sphereTargetPositions: Float32Array | null = null // 退出展示模式时的球体目标位置
+  // 状态系统
+  private currentState: StateBehavior | null = null
+  private previousStateId: string | null = null
+  private lastUpdateReturnedTrue: boolean = false
+  private needsSphereRecovery: boolean = false
 
-  // 进入展示模式相关（等待参数过渡完成）
-  private isEnteringShowMode: boolean = false
-  private pendingShowPositions: Float32Array | null = null
-
-  // 监听模式相关（音频环形波器）
-  private isListeningMode: boolean = false
+  // 外部数据（通过 StateContext 暴露给状态行为）
   private frequencyData: Uint8Array | null = null
-  private userRotationY: number = 0  // 用户拖动旋转量
+  private showPositions: Float32Array | null = null
+  private audioIntensity: number = 0
+  private userRotationY: number = 0
 
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
@@ -57,23 +53,20 @@ export class FluidParticles {
 
   private createParticles() {
     const geometry = new THREE.BufferGeometry()
-    const positions = new Float32Array(this.currentParams.particleCount * 3)
-    const normals = new Float32Array(this.currentParams.particleCount * 3)
-    const scales = new Float32Array(this.currentParams.particleCount)
-    const randomness = new Float32Array(this.currentParams.particleCount)
+    const count = this.currentParams.particleCount
+    const positions = new Float32Array(count * 3)
+    const normals = new Float32Array(count * 3)
+    const scales = new Float32Array(count)
+    const randomness = new Float32Array(count)
 
-    // 初始化方向向量数组
-    this.particleDirections = new Float32Array(this.currentParams.particleCount * 3)
+    this.particleDirections = new Float32Array(count * 3)
 
-    for (let i = 0; i < this.currentParams.particleCount; i++) {
+    for (let i = 0; i < count; i++) {
       const i3 = i * 3
-
-      // Sphere distribution
       const radius = this.currentParams.radius
       const theta = Math.random() * Math.PI * 2
       const phi = Math.acos(Math.random() * 2 - 1)
 
-      // 保存方向向量（单位向量）
       const dx = Math.sin(phi) * Math.cos(theta)
       const dy = Math.sin(phi) * Math.sin(theta)
       const dz = Math.cos(phi)
@@ -81,12 +74,10 @@ export class FluidParticles {
       this.particleDirections[i3 + 1] = dy
       this.particleDirections[i3 + 2] = dz
 
-      // 使用方向向量计算位置
       positions[i3] = radius * dx
       positions[i3 + 1] = radius * dy
       positions[i3 + 2] = radius * dz
 
-      // Normals (pointing outward)
       normals[i3] = dx
       normals[i3 + 1] = dy
       normals[i3 + 2] = dz
@@ -112,12 +103,8 @@ export class FluidParticles {
       uAlphaBase: { value: this.currentParams.alphaBase },
       uParticleSize: { value: this.currentParams.particleSize },
       uParticleSides: { value: this.currentParams.particleSides },
-      uPrimaryColor: { value: new THREE.Vector3(
-        ...Object.values(hexToRgb(this.currentParams.primaryColor))
-      ) },
-      uSecondaryColor: { value: new THREE.Vector3(
-        ...Object.values(hexToRgb(this.currentParams.secondaryColor))
-      ) },
+      uPrimaryColor: { value: new THREE.Vector3(...Object.values(hexToRgb(this.currentParams.primaryColor))) },
+      uSecondaryColor: { value: new THREE.Vector3(...Object.values(hexToRgb(this.currentParams.secondaryColor))) },
     }
 
     const material = new THREE.ShaderMaterial({
@@ -133,61 +120,95 @@ export class FluidParticles {
     this.scene.add(this.particles)
   }
 
+  // === 主更新循环 ===
+
   update(time: number, audioIntensity: number = 0) {
     this.uniforms.uTime.value = time
-    this.uniforms.uAudioIntensity.value = audioIntensity
+    this.audioIntensity = audioIntensity
 
-    // 使用简单的线性插值，让过渡速度真正可控
-    // transitionSpeed 表示每帧移动的比例（0.01 = 1%，需要约100帧 = 1.67秒）
-    const transitionSpeed = this.targetParams.transitionSpeed ?? 0.08
+    // 1. 参数 lerp 插值
+    this.lerpParams()
 
-    // 对于关键参数（如半径），使用稍快的速度
-    this.currentParams.radius = lerp(this.currentParams.radius, this.targetParams.radius, transitionSpeed * 1.5)
-    this.currentParams.particleSize = lerp(this.currentParams.particleSize, this.targetParams.particleSize, transitionSpeed * 1.2)
+    // 2. 粒子重建检查
+    this.checkRebuild()
 
-    // 其他参数使用标准速度
-    this.currentParams.animSpeed = lerp(this.currentParams.animSpeed, this.targetParams.animSpeed, transitionSpeed)
-    this.currentParams.breathSpeed = lerp(this.currentParams.breathSpeed, this.targetParams.breathSpeed, transitionSpeed)
-    this.currentParams.breathAmplitude = lerp(this.currentParams.breathAmplitude, this.targetParams.breathAmplitude, transitionSpeed)
-    this.currentParams.noiseAmplitude = lerp(this.currentParams.noiseAmplitude, this.targetParams.noiseAmplitude, transitionSpeed)
-    this.currentParams.rotationSpeed = lerp(this.currentParams.rotationSpeed, this.targetParams.rotationSpeed, transitionSpeed)
-    this.currentParams.colorMixSpeed = lerp(this.currentParams.colorMixSpeed, this.targetParams.colorMixSpeed, transitionSpeed)
-    this.currentParams.glowIntensity = lerp(this.currentParams.glowIntensity, this.targetParams.glowIntensity, transitionSpeed)
-    this.currentParams.alphaBase = lerp(this.currentParams.alphaBase, this.targetParams.alphaBase, transitionSpeed)
+    // 3. 同步 uniforms
+    this.syncUniforms()
 
-    // 颜色参数直接更新（不插值）
+    // 4. 委托给当前状态行为
+    if (this.currentState && this.particles) {
+      const ctx = this.buildContext(time)
+      const modified = this.currentState.update(ctx)
+
+      if (modified) {
+        // 状态修改了 positions/normals
+        this.particles.geometry.attributes.position.needsUpdate = true
+        this.particles.geometry.attributes.normal.needsUpdate = true
+        this.lastUpdateReturnedTrue = true
+      } else if (this.lastUpdateReturnedTrue) {
+        // 状态从修改 positions → 不修改，需要球体恢复
+        this.lastUpdateReturnedTrue = false
+        this.needsSphereRecovery = true
+      }
+
+      // 球体恢复：当状态不处理位置但位置偏离球体时
+      if (this.needsSphereRecovery && !modified) {
+        this.doSphereRecovery()
+      }
+    }
+
+    // 5. 整体旋转
+    if (this.particles) {
+      this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
+    }
+  }
+
+  // === 参数插值 ===
+
+  private lerpParams() {
+    const speed = this.targetParams.transitionSpeed ?? 0.08
+
+    this.currentParams.radius = lerp(this.currentParams.radius, this.targetParams.radius, speed * 1.5)
+    this.currentParams.particleSize = lerp(this.currentParams.particleSize, this.targetParams.particleSize, speed * 1.2)
+    this.currentParams.animSpeed = lerp(this.currentParams.animSpeed, this.targetParams.animSpeed, speed)
+    this.currentParams.breathSpeed = lerp(this.currentParams.breathSpeed, this.targetParams.breathSpeed, speed)
+    this.currentParams.breathAmplitude = lerp(this.currentParams.breathAmplitude, this.targetParams.breathAmplitude, speed)
+    this.currentParams.noiseAmplitude = lerp(this.currentParams.noiseAmplitude, this.targetParams.noiseAmplitude, speed)
+    this.currentParams.rotationSpeed = lerp(this.currentParams.rotationSpeed, this.targetParams.rotationSpeed, speed)
+    this.currentParams.colorMixSpeed = lerp(this.currentParams.colorMixSpeed, this.targetParams.colorMixSpeed, speed)
+    this.currentParams.glowIntensity = lerp(this.currentParams.glowIntensity, this.targetParams.glowIntensity, speed)
+    this.currentParams.alphaBase = lerp(this.currentParams.alphaBase, this.targetParams.alphaBase, speed)
+
     this.currentParams.primaryColor = this.targetParams.primaryColor
     this.currentParams.secondaryColor = this.targetParams.secondaryColor
+  }
 
-    // 对于需要重建的属性（粒子数量、形状），使用阈值判断是否更新
+  // === 粒子重建 ===
+
+  private checkRebuild() {
     const countDiff = Math.abs(this.currentParams.particleCount - this.targetParams.particleCount)
     const sidesDiff = Math.abs(this.currentParams.particleSides - this.targetParams.particleSides)
     const radiusChanged = Math.abs(this.currentParams.radius - this.targetParams.radius) > 0.01
 
-    // 如果粒子数量或形状差异足够大，立即重建
     if (countDiff > 100 || sidesDiff > 0.5) {
       this.currentParams.particleCount = this.targetParams.particleCount
       this.currentParams.particleSides = this.targetParams.particleSides
 
-      // 重建前清理所有模式状态
-      this.resetModeState()
-
-      // 重建粒子
       if (this.particles) {
-        this.particles.geometry.dispose()
-        ;(this.particles.material as THREE.Material).dispose()
+        this.particles.geometry.dispose();
+        (this.particles.material as THREE.Material).dispose()
         this.scene.remove(this.particles)
       }
       this.createParticles()
-    }
-    // 如果半径变化了，更新粒子位置（仅在非模式状态下，避免破坏展示/监听模式的平滑过渡）
-    else if (radiusChanged && this.particles && this.particleDirections
-             && !this.isShowMode && !this.isEnteringShowMode && !this.isExitingShowMode && !this.isListeningMode) {
+    } else if (radiusChanged && this.particles && this.particleDirections
+               && !this.lastUpdateReturnedTrue && !this.needsSphereRecovery) {
+      // 半径变化时更新球体位置（仅在状态不处理位置时）
       const posAttr = this.particles.geometry.attributes.position
       const positions = posAttr.array as Float32Array
       const radius = this.currentParams.radius
+      const count = this.currentParams.particleCount
 
-      for (let i = 0; i < this.currentParams.particleCount; i++) {
+      for (let i = 0; i < count; i++) {
         const i3 = i * 3
         positions[i3] = radius * this.particleDirections[i3]
         positions[i3 + 1] = radius * this.particleDirections[i3 + 1]
@@ -195,123 +216,48 @@ export class FluidParticles {
       }
       posAttr.needsUpdate = true
     }
+  }
 
-    // 更新 shader uniforms
-    this.syncUniforms()
+  // === 球体恢复 ===
 
-    // 进入展示模式处理（等待参数过渡完成后开始位置过渡）
-    if (this.isEnteringShowMode && this.pendingShowPositions && this.particles) {
-      // 检查参数是否已经过渡完成
-      const paramsTransitioned =
-        Math.abs(this.currentParams.radius - this.targetParams.radius) < 0.01 &&
-        Math.abs(this.currentParams.particleSize - this.targetParams.particleSize) < 0.1
+  private doSphereRecovery() {
+    if (!this.particles || !this.particleDirections) return
 
-      if (paramsTransitioned) {
-        logger.log(`[FluidParticles] Params transitioned at time: ${time.toFixed(2)}, starting position transition to show content`)
-        // 参数过渡完成，开始位置过渡
-        this.showTargetPositions = this.pendingShowPositions
-        this.isShowMode = true
-        this.isEnteringShowMode = false
-        this.pendingShowPositions = null
-      } else {
-        // 参数还在过渡中，保持当前状态
-        this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
+    const posAttr = this.particles.geometry.attributes.position
+    const positions = posAttr.array as Float32Array
+    const radius = this.currentParams.radius
+    const count = this.currentParams.particleCount
+    const speed = this.targetParams.transitionSpeed ?? 0.08
+    let allDone = true
+
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3
+      const tx = radius * this.particleDirections[i3]
+      const ty = radius * this.particleDirections[i3 + 1]
+      const tz = radius * this.particleDirections[i3 + 2]
+
+      positions[i3] = lerp(positions[i3], tx, speed)
+      positions[i3 + 1] = lerp(positions[i3 + 1], ty, speed)
+      positions[i3 + 2] = lerp(positions[i3 + 2], tz, speed)
+
+      if (Math.abs(positions[i3] - tx) > 0.01 ||
+          Math.abs(positions[i3 + 1] - ty) > 0.01 ||
+          Math.abs(positions[i3 + 2] - tz) > 0.01) {
+        allDone = false
       }
     }
-    // 展示模式处理
-    else if (this.isShowMode && this.showTargetPositions && this.particles) {
 
-      const posAttr = this.particles.geometry.attributes.position
-      const positions = posAttr.array as Float32Array
+    posAttr.needsUpdate = true
 
-      // 粒子向目标位置过渡
-      // 使用用户控制的过渡速度（与参数过渡速度相同）
-      const positionTransitionSpeed = this.targetParams.transitionSpeed || 0.08
-      for (let i = 0; i < this.currentParams.particleCount; i++) {
-        const i3 = i * 3
-        const targetIndex = (i % (this.showTargetPositions.length / 3)) * 3
-
-        positions[i3] = lerp(positions[i3], this.showTargetPositions[targetIndex], positionTransitionSpeed)
-        positions[i3 + 1] = lerp(positions[i3 + 1], this.showTargetPositions[targetIndex + 1], positionTransitionSpeed)
-        positions[i3 + 2] = lerp(positions[i3 + 2], this.showTargetPositions[targetIndex + 2], positionTransitionSpeed)
-      }
-      posAttr.needsUpdate = true
-
-      // 在展示模式下减少旋转
-      this.particles.rotation.y = time * this.currentParams.rotationSpeed * 0.1 + this.userRotationY
-    }
-    // 监听模式：3D 海胆球频谱
-    else if (this.isListeningMode && this.frequencyData && this.particles) {
-      this.updateListeningSphere(time)
-    }
-    else if (this.particles) {
-      // 非展示模式：正常球体行为
-      // 如果刚从展示模式退出，先等参数过渡完成，再开始位置过渡
-      if (this.isExitingShowMode) {
-        // 检查参数是否已经过渡完成
-        const paramsTransitioned =
-          Math.abs(this.currentParams.radius - this.targetParams.radius) < 0.01 &&
-          Math.abs(this.currentParams.particleSize - this.targetParams.particleSize) < 0.1
-
-        if (paramsTransitioned && !this.sphereTargetPositions) {
-          // 参数过渡完成后，用当前参数计算球体目标位置
-          logger.log(`[FluidParticles] Params transitioned at time: ${time.toFixed(2)}, calculating sphere with currentRadius: ${this.currentParams.radius.toFixed(3)}`)
-          this.sphereTargetPositions = new Float32Array(this.currentParams.particleCount * 3)
-          const radius = this.currentParams.radius // 使用当前半径（已接近目标）
-
-          for (let i = 0; i < this.currentParams.particleCount; i++) {
-            const i3 = i * 3
-            const theta = Math.random() * Math.PI * 2
-            const phi = Math.acos(Math.random() * 2 - 1)
-
-            this.sphereTargetPositions[i3] = radius * Math.sin(phi) * Math.cos(theta)
-            this.sphereTargetPositions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta)
-            this.sphereTargetPositions[i3 + 2] = radius * Math.cos(phi)
-          }
-        }
-
-        if (this.sphereTargetPositions) {
-          // 粒子向球体目标位置过渡
-          const posAttr = this.particles.geometry.attributes.position
-          const positions = posAttr.array as Float32Array
-          // 使用用户控制的过渡速度（与参数过渡速度相同）
-          const positionTransitionSpeed = this.targetParams.transitionSpeed || 0.08
-          let allTransitioned = true
-
-          for (let i = 0; i < this.currentParams.particleCount; i++) {
-            const i3 = i * 3
-
-            positions[i3] = lerp(positions[i3], this.sphereTargetPositions[i3], positionTransitionSpeed)
-            positions[i3 + 1] = lerp(positions[i3 + 1], this.sphereTargetPositions[i3 + 1], positionTransitionSpeed)
-            positions[i3 + 2] = lerp(positions[i3 + 2], this.sphereTargetPositions[i3 + 2], positionTransitionSpeed)
-
-            // 检查是否所有粒子都已过渡完成
-            const dx = positions[i3] - this.sphereTargetPositions[i3]
-            const dy = positions[i3 + 1] - this.sphereTargetPositions[i3 + 1]
-            const dz = positions[i3 + 2] - this.sphereTargetPositions[i3 + 2]
-            if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01 || Math.abs(dz) > 0.01) {
-              allTransitioned = false
-            }
-          }
-          posAttr.needsUpdate = true
-
-          // 位置过渡完成后清理
-          if (allTransitioned) {
-            logger.log(`[FluidParticles] Position transition complete at time: ${time.toFixed(2)}`)
-            this.isExitingShowMode = false
-            this.sphereTargetPositions = null
-          }
-        }
-      }
-
-      this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
+    if (allDone) {
+      this.needsSphereRecovery = false
+      logger.log('[FluidParticles] Sphere recovery complete')
     }
   }
 
-  /**
-   * 同步所有 uniforms 到 GPU（避免 update/updateParams 重复代码）
-   */
-  private syncUniforms(): void {
+  // === Uniform 同步 ===
+
+  private syncUniforms() {
     const p = this.currentParams
     this.uniforms.uAnimSpeed.value = p.animSpeed
     this.uniforms.uBreathSpeed.value = p.breathSpeed
@@ -329,258 +275,122 @@ export class FluidParticles {
     this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
   }
 
-  // 设置目标参数（触发平滑过渡）
+  // === 上下文构建 ===
+
+  private buildContext(time: number): StateContext {
+    const geo = this.particles!.geometry
+    return {
+      positions: geo.attributes.position.array as Float32Array,
+      normals: geo.attributes.normal.array as Float32Array,
+      randomness: geo.attributes.aRandomness.array as Float32Array,
+      particleDirections: this.particleDirections ?? new Float32Array(0),
+      particleCount: this.currentParams.particleCount,
+      baseRadius: this.targetParams.radius,
+      frequencyData: this.frequencyData,
+      audioIntensity: this.audioIntensity,
+      showPositions: this.showPositions,
+      time,
+    }
+  }
+
+  // === 公共 API ===
+
+  /**
+   * 设置当前状态（切换时调用 onExit/onEnter）
+   */
+  setState(id: string): void {
+    const newState = StateRegistry.get(id)
+    if (!newState) {
+      logger.log(`[FluidParticles] Unknown state: ${id}`)
+      return
+    }
+    if (newState === this.currentState) return
+
+    logger.log(`[FluidParticles] State change: ${this.currentState?.id ?? 'none'} → ${id}`)
+
+    // 退出旧状态
+    if (this.currentState && this.particles) {
+      const ctx = this.buildContext(0)
+      this.currentState.onExit(ctx)
+    }
+
+    this.previousStateId = this.currentState?.id ?? null
+    this.currentState = newState
+    this.lastUpdateReturnedTrue = false
+    this.needsSphereRecovery = false  // 新状态接管，不需要恢复
+
+    // 进入新状态
+    if (this.particles) {
+      const ctx = this.buildContext(0)
+      newState.onEnter(ctx, this.previousStateId)
+    }
+
+    // 应用新状态预设参数
+    this.targetParams = { ...newState.preset }
+  }
+
   setTargetParams(params: FluidParams) {
-    logger.log(`[FluidParticles] setTargetParams called, animSpeed: ${params.animSpeed}, noiseAmplitude: ${params.noiseAmplitude}, radius: ${params.radius}, size: ${params.particleSize}`)
     this.targetParams = { ...params }
   }
 
-  // 立即设置参数（无过渡，用于控制面板手动调整）
   updateParams(params: FluidParams) {
     this.targetParams = { ...params }
     this.currentParams = { ...params }
-
-    // 立即更新 uniforms
     this.syncUniforms()
 
-    // 重建前清理所有模式状态
-    this.resetModeState()
-
-    // 重建粒子
     if (this.particles) {
-      this.particles.geometry.dispose()
-      ;(this.particles.material as THREE.Material).dispose()
+      this.particles.geometry.dispose();
+      (this.particles.material as THREE.Material).dispose()
       this.scene.remove(this.particles)
     }
     this.createParticles()
   }
 
-  /**
-   * 设置展示内容（进入"等待参数过渡"状态）
-   */
-  setShowContent(positions: Float32Array): void {
-    logger.log(`[FluidParticles] setShowContent called with ${positions.length / 3} points, entering "waiting for params" state`)
-
-    // 保存展示位置，但不立即进入展示模式
-    this.pendingShowPositions = positions
-    this.isEnteringShowMode = true
-    this.isShowMode = false
-    this.isExitingShowMode = false
-  }
-
-  /**
-   * 取消展示（清除待展示的位置数据）
-   */
-  cancelShow(): void {
-    logger.log(`[FluidParticles] Canceling show mode`)
-    this.pendingShowPositions = null
-    this.isEnteringShowMode = false
-  }
-
-  /**
-   * 退出展示模式
-   */
-  exitShowMode(): void {
-    logger.log(`[FluidParticles] Exiting show mode, currentRadius: ${this.currentParams.radius.toFixed(3)}, targetRadius: ${this.targetParams.radius.toFixed(3)}, currentSize: ${this.currentParams.particleSize.toFixed(3)}, targetSize: ${this.targetParams.particleSize.toFixed(3)}`)
-    this.isShowMode = false
-    this.isExitingShowMode = true
-    this.isEnteringShowMode = false
-    this.pendingShowPositions = null
-    this.sphereTargetPositions = null
-  }
-
-  /**
-   * 重置所有模式状态（粒子重建前调用）
-   */
-  private resetModeState(): void {
-    this.isShowMode = false
-    this.isEnteringShowMode = false
-    this.isExitingShowMode = false
-    this.isListeningMode = false
-    this.showTargetPositions = null
-    this.pendingShowPositions = null
-    this.sphereTargetPositions = null
-    this.frequencyData = null
-  }
-
-  /**
-   * 检查是否在展示模式
-   */
-  isInShowMode(): boolean {
-    return this.isShowMode
-  }
-
-  /**
-   * 更新频域数据（从 ZedAvatar animate loop 每帧调用）
-   * 传入非 null 数据时进入监听模式，传入 null 时退出
-   */
   updateFrequencyData(data: Uint8Array | null): void {
-    if (data && data.length > 0) {
-      this.isListeningMode = true
-      this.frequencyData = data
-    } else {
-      this.isListeningMode = false
-      this.frequencyData = null
+    this.frequencyData = data
+  }
+
+  setShowContent(positions: Float32Array): void {
+    logger.log(`[FluidParticles] setShowContent: ${positions.length / 3} points`)
+    this.showPositions = positions
+    // 如果已在 show 状态但 positions 到达晚于 setState，重新触发 onEnter
+    if (this.currentState?.id === 'show' && this.particles) {
+      const ctx = this.buildContext(0)
+      this.currentState.onEnter(ctx, null)
     }
   }
 
-  /**
-   * 设置用户拖动旋转量（由 ZedAvatar 鼠标事件驱动）
-   */
+  cancelShow(): void {
+    logger.log('[FluidParticles] cancelShow')
+    this.showPositions = null
+  }
+
+  exitShowMode(): void {
+    logger.log('[FluidParticles] exitShowMode')
+    // 触发当前状态（show）的 onExit → 进入退出过渡
+    if (this.currentState?.id === 'show' && this.particles) {
+      const ctx = this.buildContext(0)
+      this.currentState.onExit(ctx)
+    }
+    this.showPositions = null
+  }
+
+  isInShowMode(): boolean {
+    return this.currentState?.id === 'show'
+  }
+
   setUserRotation(rotationY: number): void {
     this.userRotationY = rotationY
   }
 
-  /**
-   * 监听模式：3D 海胆球 — 粒子分布球面，频域驱动径向辐射
-   */
-  private updateListeningSphere(time: number): void {
-    if (!this.particles || !this.frequencyData) return
-
-    const posAttr = this.particles.geometry.attributes.position
-    const positions = posAttr.array as Float32Array
-    const randAttr = this.particles.geometry.attributes.aRandomness
-    const randomness = randAttr.array as Float32Array
-
-    const count = this.currentParams.particleCount
-    const binCount = this.frequencyData.length
-    const baseRadius = this.currentParams.radius
-    const maxSpikeHeight = 1.0
-
-    // 85% 粒子形成海胆球表面，15% 内核
-    const barCount = Math.floor(count * 0.85)
-    const innerCount = count - barCount
-
-    // Fibonacci 球面均匀分布常量
-    const goldenAngle = Math.PI * (3 - Math.sqrt(5))
-
-    // 整体音量
-    let totalAmp = 0
-    for (let b = 0; b < binCount; b++) totalAmp += this.frequencyData[b]
-    const avgAmp = totalAmp / binCount / 255
-
-    // 禁用 shader 的音频缩放（只在内核 CPU 端应用）
-    this.uniforms.uAudioIntensity.value = 0
-
-    const normalAttr = this.particles.geometry.attributes.normal
-    const normals = normalAttr.array as Float32Array
-
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3
-      const r1 = randomness[i]
-      const r2 = randomness[(i * 7 + 3) % count]
-
-      let targetX: number, targetY: number, targetZ: number
-
-      if (i < barCount) {
-        // === 外层频谱刺 (严格频域驱动，无 shader 效果) ===
-        const phi = Math.acos(1 - 2 * (i + 0.5) / barCount)
-        const theta = goldenAngle * i
-
-        const binIndex = Math.min(
-          Math.floor((Math.PI - phi) / Math.PI * binCount),
-          binCount - 1
-        )
-        const amplitude = this.frequencyData[binIndex] / 255
-
-        const hfBoost = 1.0 + (binIndex / binCount) * 2.0
-        // 低频增幅：底部 (bin 0-15) 额外拉长尾巴
-        const lfEmphasis = 1.0 + Math.max(0, 1.0 - binIndex / 16) * 3.0
-        const compensated = Math.min(amplitude * hfBoost * lfEmphasis, 1.0)
-
-        const t = r1
-        const radius = baseRadius + t * compensated * maxSpikeHeight
-
-        const sinPhi = Math.sin(phi)
-        targetX = radius * sinPhi * Math.cos(theta)
-        targetY = radius * Math.cos(phi)
-        targetZ = radius * sinPhi * Math.sin(theta)
-
-        // 清零法线：屏蔽 shader 的噪声/呼吸/音频缩放效果
-        normals[i3] = 0
-        normals[i3 + 1] = 0
-        normals[i3 + 2] = 0
-      } else {
-        // === 内核球体 (原始倾听效果：噪声 + 呼吸 + 音频缩放，CPU 端实现) ===
-        const innerIdx = i - barCount
-        const phi = Math.acos(1 - 2 * (innerIdx + 0.5) / innerCount)
-        const theta = goldenAngle * (innerIdx + barCount)
-
-        const maxR = baseRadius * 0.3
-        const baseR = Math.cbrt(r2) * maxR
-
-        // 径向方向（法线）
-        const sinPhi = Math.sin(phi)
-        // 内核独立旋转（比外层快）
-        const innerRotSpeed = 0.3
-        const rotatedTheta = theta + time * innerRotSpeed
-        const sinRT = Math.sin(rotatedTheta)
-        const cosRT = Math.cos(rotatedTheta)
-        const nx = sinPhi * cosRT
-        const ny = Math.cos(phi)
-        const nz = sinPhi * sinRT
-
-        // 基础位置
-        let cx = baseR * nx
-        let cy = baseR * ny
-        let cz = baseR * nz
-
-        // 噪声扰动（更快的动画速度）
-        const noiseVal = Math.sin(cx * 2.0 + time * 1.6) *
-                         Math.cos(cy * 2.0 + time * 0.96) *
-                         Math.sin(cz * 2.0 + time * 1.92)
-        const noiseDisplace = noiseVal * 0.25 * (1.0 + avgAmp * 1.5)
-        cx += nx * noiseDisplace
-        cy += ny * noiseDisplace
-        cz += nz * noiseDisplace
-
-        // 呼吸脉动（更快）
-        const breath = Math.sin(time * 3.0) * 0.08 + 1.0
-        cx *= breath
-        cy *= breath
-        cz *= breath
-
-        // 音频缩放（轻微）
-        const audioScale = 1.0 + avgAmp * 1.5 * 0.3
-        cx *= audioScale
-        cy *= audioScale
-        cz *= audioScale
-
-        // 限制不超出外层刺的基础半径
-        const dist = Math.sqrt(cx * cx + cy * cy + cz * cz)
-        if (dist > baseRadius * 0.9) {
-          const scale = (baseRadius * 0.9) / dist
-          cx *= scale
-          cy *= scale
-          cz *= scale
-        }
-
-        // 法线保留（虽然 shader 不再使用，但保持一致）
-        normals[i3] = nx
-        normals[i3 + 1] = ny
-        normals[i3 + 2] = nz
-
-        targetX = cx
-        targetY = cy
-        targetZ = cz
-      }
-
-      // lerp 平滑过渡
-      positions[i3] = lerp(positions[i3], targetX, 0.35)
-      positions[i3 + 1] = lerp(positions[i3 + 1], targetY, 0.35)
-      positions[i3 + 2] = lerp(positions[i3 + 2], targetZ, 0.35)
-    }
-    posAttr.needsUpdate = true
-    normalAttr.needsUpdate = true
-
-    // 整体缓慢旋转 + 用户拖动旋转
-    this.particles.rotation.y = time * this.currentParams.rotationSpeed + this.userRotationY
+  getCurrentStateId(): string | null {
+    return this.currentState?.id ?? null
   }
 
   dispose() {
     if (this.particles) {
-      this.particles.geometry.dispose()
-      ;(this.particles.material as THREE.Material).dispose()
+      this.particles.geometry.dispose();
+      (this.particles.material as THREE.Material).dispose()
       this.scene.remove(this.particles)
     }
   }
