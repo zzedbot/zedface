@@ -74,12 +74,19 @@ function App() {
     }
     setShowContent(null)
 
+    // 等待 ShowState 退出过渡完成后切 idle
+    // lerp 收敛到 95% 所需时间 = -ln(20) / (fps * ln(1-ts))
+    // ts=0.1 → ~0.49s, ts=0.08 → ~0.61s, 加 100ms 余量
+    const showTs = getPreset('show').transitionSpeed ?? 0.08
+    const convergeSec = -Math.log(20) / (60 * Math.log(1 - showTs))
+    const waitMs = Math.max(400, Math.round((convergeSec + 0.1) * 1000))
+
     showEndTimerRef.current = window.setTimeout(() => {
       console.log('[App] Control: showEnd - switching to idle')
       setDebugState(null)
       setFluidParams(getPreset('idle'))
       showEndTimerRef.current = null
-    }, 2000)
+    }, waitMs)
   }, [])
 
   const handleCancelShow = useCallback(() => {
