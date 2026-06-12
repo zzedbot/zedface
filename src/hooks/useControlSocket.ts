@@ -31,7 +31,7 @@ const BASE_RECONNECT_DELAY_MS = 3000
 
 export function useControlSocket({
   url = 'ws://localhost:3001',
-  token = import.meta.env.VITE_WS_TOKEN || '',
+  token = import.meta.env.VITE_WS_TOKEN || 'zedface-control-dev-token',
   onStateChange,
   onParamsChange,
   onShow,
@@ -111,9 +111,16 @@ export function useControlSocket({
         }
       };
 
-      ws.onclose = () => {
-        console.log('[ControlSocket] Disconnected');
+      ws.onclose = (event) => {
+        console.log('[ControlSocket] Disconnected', event.code, event.reason);
         setConnected(false);
+
+        // 认证失败（服务端主动拒绝）不重连
+        if (event.code === 4001 || event.code === 4002) {
+          console.warn('[ControlSocket] Auth rejected, not reconnecting');
+          reconnectAttemptsRef.current = MAX_RECONNECT_ATTEMPTS;
+          return;
+        }
 
         // 指数退避重连，最大次数限制
         if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {

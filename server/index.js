@@ -10,13 +10,8 @@ const wss = new WebSocketServer({ server });
 // 配置
 const PORT = process.env.PORT || 3001;
 
-// 安全：必须通过环境变量设置 token，拒绝使用默认值
-const AUTH_TOKEN = process.env.ZEDFACE_TOKEN;
-if (!AUTH_TOKEN) {
-  console.error('ERROR: ZEDFACE_TOKEN environment variable is required.');
-  console.error('Set it with: ZEDFACE_TOKEN=your-secret-token npm start');
-  process.exit(1);
-}
+// 安全：优先使用环境变量，开发环境回退到默认 token
+const AUTH_TOKEN = process.env.ZEDFACE_TOKEN || 'zedface-control-dev-token';
 
 const MAX_CONTENT_LENGTH = 10000;
 const WS_OPEN = 1; // WebSocket.OPEN

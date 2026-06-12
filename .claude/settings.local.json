@@ -35,7 +35,8 @@
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(git stash *)",
       "Bash(tasklist)",
-      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")"
+      "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")",
+      "Bash(findstr :3001)"
     ]
   }
 }
