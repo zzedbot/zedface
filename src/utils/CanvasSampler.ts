@@ -131,9 +131,32 @@ export class CanvasSampler {
   }
 
   /**
-   * 采样 Emoji
+   * 将 emoji 转换为 Twemoji SVG URL
+   * 例如：🙂 → https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/1f642.svg
    */
-  sampleEmoji(emoji: string, options: SampleOptions = {}): Float32Array {
+  private emojiToTwemojiUrl(emoji: string): string {
+    const TWEJSON_CDN = 'https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/svg/'
+
+    // 将 emoji 转换为 code point 序列
+    const codePoints: string[] = []
+    for (const char of emoji) {
+      const code = char.codePointAt(0)
+      if (code === undefined) continue
+      // 跳过变体选择器 (FE0E, FE0F) 和 ZWJ (200D) 保留用于组合
+      if (code === 0xFE0E || code === 0xFE0F) continue
+      codePoints.push(code.toString(16))
+    }
+
+    if (codePoints.length === 0) return ''
+
+    const filename = codePoints.join('-') + '.svg'
+    return TWEJSON_CDN + filename
+  }
+
+  /**
+   * 采样 Emoji（使用 Twemoji CDN 渲染，通过边缘检测提取五官细节）
+   */
+  async sampleEmoji(emoji: string, options: SampleOptions = {}): Promise<Float32Array> {
     if (!emoji) return new Float32Array(0)
 
     const { fontSize = 200, maxPoints = 12000 } = options
@@ -141,29 +164,175 @@ export class CanvasSampler {
     const maxWidth = options.maxWidth || maxDisplay.maxWidth
     const maxHeight = options.maxHeight || maxDisplay.maxHeight
 
+    // 使用较大画布以提高边缘检测精度
+    const canvasSize = Math.ceil(Math.min(fontSize * 1.5, maxWidth, maxHeight))
+
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d', { willReadFrequently: true })!
-
-    let adjustedFontSize = fontSize
-    ctx.font = `${adjustedFontSize}px serif`
-    const emojiWidth = ctx.measureText(emoji).width
-    const emojiHeight = adjustedFontSize * 1.2
-
-    if (emojiWidth > maxWidth || emojiHeight > maxHeight) {
-      const scale = Math.min(maxWidth / emojiWidth, maxHeight / emojiHeight)
-      adjustedFontSize = Math.max(1, Math.floor(adjustedFontSize * scale))
-    }
-
-    const canvasSize = Math.ceil(adjustedFontSize * 1.5)
     canvas.width = canvasSize
     canvas.height = canvasSize
 
-    ctx.font = `${adjustedFontSize}px serif`
+    // 尝试使用 Twemoji SVG 渲染
+    const twemojiUrl = this.emojiToTwemojiUrl(emoji)
+
+    if (twemojiUrl) {
+      try {
+        const img = await this.loadImage(twemojiUrl, 10000)
+        // 居中绘制，留出边距
+        const padding = canvasSize * 0.1
+        const drawSize = canvasSize - padding * 2
+        ctx.drawImage(img, padding, padding, drawSize, drawSize)
+        // 使用边缘检测采样（而非普通 alpha 采样）
+        return this.sampleEmojiPixels(canvas, ctx, maxPoints)
+      } catch (error) {
+        console.warn('[CanvasSampler] Twemoji load failed, falling back to fillText:', error)
+      }
+    }
+
+    // Fallback: 使用原生 fillText
+    ctx.font = `${fontSize}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(emoji, canvasSize / 2, canvasSize / 2)
 
-    return this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
+    return this.sampleEmojiPixels(canvas, ctx, maxPoints)
+  }
+
+  /**
+   * Emoji 专用采样：边缘检测 + 非透明区域
+   * 在颜色突变处（五官轮廓）密集采样，在均匀区域稀疏采样
+   */
+  private sampleEmojiPixels(
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    maxPoints: number,
+  ): Float32Array {
+    const width = canvas.width
+    const height = canvas.height
+    if (width === 0 || height === 0) return new Float32Array(0)
+
+    const imageData = ctx.getImageData(0, 0, width, height)
+    const data = imageData.data
+
+    // 计算每个像素的亮度
+    const luminance = new Float32Array(width * height)
+    for (let i = 0; i < width * height; i++) {
+      const r = data[i * 4]
+      const g = data[i * 4 + 1]
+      const b = data[i * 4 + 2]
+      const a = data[i * 4 + 3]
+      // 亮度 = 颜色亮度 * alpha（透明区域亮度为 0）
+      luminance[i] = (0.299 * r + 0.587 * g + 0.114 * b) * (a / 255)
+    }
+
+    // 边缘检测：计算每个像素与邻域的亮度差
+    const EDGE_THRESHOLD = 30  // 亮度差阈值
+    const step = SAMPLE_STEP
+    const edgePoints: [number, number, number][] = [] // [x, y, edgeStrength]
+    const fillPoints: [number, number][] = []
+
+    for (let y = step; y < height - step; y += step) {
+      for (let x = step; x < width - step; x += step) {
+        const idx = y * width + x
+        const alpha = data[idx * 4 + 3]
+        if (alpha < ALPHA_THRESHOLD) continue
+
+        const center = luminance[idx]
+
+        // 采样 4 个方向的邻域
+        const up = luminance[(y - step) * width + x]
+        const down = luminance[(y + step) * width + x]
+        const left = luminance[y * width + (x - step)]
+        const right = luminance[y * width + (x + step)]
+
+        // 最大亮度差 = 边缘强度
+        const edgeStrength = Math.max(
+          Math.abs(center - up),
+          Math.abs(center - down),
+          Math.abs(center - left),
+          Math.abs(center - right),
+        )
+
+        if (edgeStrength > EDGE_THRESHOLD) {
+          // 边缘点（五官轮廓）—— 加入高权重
+          edgePoints.push([x, y, edgeStrength])
+        } else {
+          // 均匀区域（脸部填充）—— 低权重
+          fillPoints.push([x, y])
+        }
+      }
+    }
+
+    // 分配粒子配额：70% 给边缘，30% 给填充区域
+    const edgeQuota = Math.floor(maxPoints * 0.7)
+    const fillQuota = maxPoints - edgeQuota
+
+    let edgeSampled: [number, number][]
+    if (edgePoints.length > edgeQuota) {
+      // 按边缘强度加权采样
+      edgeSampled = this.weightedSample(edgePoints, edgeQuota)
+    } else {
+      edgeSampled = edgePoints.map(([x, y]) => [x, y])
+    }
+
+    let fillSampled: [number, number][]
+    if (fillPoints.length > fillQuota) {
+      fillSampled = this.fisherYatesSample(fillPoints, fillQuota)
+    } else {
+      fillSampled = fillPoints
+    }
+
+    const allPoints = [...edgeSampled, ...fillSampled]
+    if (allPoints.length === 0) return new Float32Array(0)
+
+    return this.to3DPositions(allPoints, width, height)
+  }
+
+  /**
+   * 按权重采样（边缘强度越高越优先）
+   */
+  private weightedSample(
+    points: [number, number, number][],
+    count: number,
+  ): [number, number][] {
+    // 计算总权重
+    let totalWeight = 0
+    for (const [, , w] of points) totalWeight += w
+
+    if (totalWeight === 0) {
+      return points.slice(0, count).map(([x, y]) => [x, y])
+    }
+
+    // 按权重排序，取前 N 个
+    const sorted = [...points].sort((a, b) => b[2] - a[2])
+    return sorted.slice(0, count).map(([x, y]) => [x, y])
+  }
+
+  /**
+   * 加载图片并返回 Promise
+   */
+  private loadImage(src: string, timeoutMs: number = 10000): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+
+      const timeout = setTimeout(() => {
+        img.src = ''
+        reject(new Error('Image load timeout'))
+      }, timeoutMs)
+
+      img.onload = () => {
+        clearTimeout(timeout)
+        resolve(img)
+      }
+
+      img.onerror = () => {
+        clearTimeout(timeout)
+        reject(new Error(`Failed to load image: ${src}`))
+      }
+
+      img.src = src
+    })
   }
 
   /**

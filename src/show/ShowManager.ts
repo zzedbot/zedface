@@ -46,7 +46,7 @@ export class ShowManager {
     if (!this.particles) return
 
     logger.log(`[ShowManager] Showing emoji: ${emoji}`)
-    const positions = canvasSampler.sampleEmoji(emoji, {
+    const positions = await canvasSampler.sampleEmoji(emoji, {
       fontSize: options.fontSize || 200,
       maxPoints: 6000,
     })
