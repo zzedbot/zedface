@@ -13,9 +13,11 @@ export const vertexShader = `
   uniform float uParticleSides;
   uniform vec3 uPrimaryColor;
   uniform vec3 uSecondaryColor;
+  uniform float uParticleColorMix;
 
   attribute float aScale;
   attribute float aRandomness;
+  attribute vec3 aParticleColor;
 
   varying vec3 vColor;
   varying float vAlpha;
@@ -43,7 +45,10 @@ export const vertexShader = `
 
     // Color gradient (custom colors)
     float colorMix = (sin(uTime * uColorMixSpeed + aRandomness * 6.28) + 1.0) * 0.5;
-    vColor = mix(uPrimaryColor, uSecondaryColor, colorMix);
+    vec3 gradientColor = mix(uPrimaryColor, uSecondaryColor, colorMix);
+
+    // Mix between gradient color and per-particle color
+    vColor = mix(gradientColor, aParticleColor, uParticleColorMix);
 
     vAlpha = uAlphaBase + uAudioIntensity * 0.4;
   }

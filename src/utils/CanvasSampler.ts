@@ -12,6 +12,12 @@ export interface SampleOptions {
   maxHeight?: number
 }
 
+/** 采样结果：包含位置（必须）和颜色（可选） */
+export interface SampleResult {
+  positions: Float32Array
+  colors: Float32Array | null
+}
+
 // 常量
 const ALPHA_THRESHOLD = 128
 const SAMPLE_STEP = 2
@@ -46,10 +52,10 @@ export class CanvasSampler {
   /**
    * 采样文字（支持自动换行和缩放）
    */
-  sampleText(text: string, options: SampleOptions = {}): Float32Array {
+  sampleText(text: string, options: SampleOptions = {}): SampleResult {
     // 空输入保护
     if (!text || !text.trim()) {
-      return new Float32Array(0)
+      return { positions: new Float32Array(0), colors: null }
     }
 
     const {
@@ -91,7 +97,7 @@ export class CanvasSampler {
     }
 
     if (lines.length === 0) {
-      return new Float32Array(0)
+      return { positions: new Float32Array(0), colors: null }
     }
 
     // 计算缩放
@@ -127,7 +133,8 @@ export class CanvasSampler {
       ctx.fillText(line, canvasWidth / 2, startY + index * lineHeight)
     })
 
-    return this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
+    const positions = this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
+    return { positions, colors: null }
   }
 
   /**
@@ -156,8 +163,8 @@ export class CanvasSampler {
   /**
    * 采样 Emoji（使用 Twemoji CDN 渲染，通过边缘检测提取五官细节）
    */
-  async sampleEmoji(emoji: string, options: SampleOptions = {}): Promise<Float32Array> {
-    if (!emoji) return new Float32Array(0)
+  async sampleEmoji(emoji: string, options: SampleOptions = {}): Promise<SampleResult> {
+    if (!emoji) return { positions: new Float32Array(0), colors: null }
 
     const { fontSize = 200, maxPoints = 12000 } = options
     const maxDisplay = this.getMaxDisplaySize()
@@ -199,17 +206,17 @@ export class CanvasSampler {
   }
 
   /**
-   * Emoji 专用采样：边缘检测 + 非透明区域
+   * Emoji 专用采样：边缘检测 + 非透明区域 + 颜色采集
    * 在颜色突变处（五官轮廓）密集采样，在均匀区域稀疏采样
    */
   private sampleEmojiPixels(
     canvas: HTMLCanvasElement,
     ctx: CanvasRenderingContext2D,
     maxPoints: number,
-  ): Float32Array {
+  ): SampleResult {
     const width = canvas.width
     const height = canvas.height
-    if (width === 0 || height === 0) return new Float32Array(0)
+    if (width === 0 || height === 0) return { positions: new Float32Array(0), colors: null }
 
     const imageData = ctx.getImageData(0, 0, width, height)
     const data = imageData.data
@@ -228,8 +235,8 @@ export class CanvasSampler {
     // 边缘检测：计算每个像素与邻域的亮度差
     const EDGE_THRESHOLD = 30  // 亮度差阈值
     const step = SAMPLE_STEP
-    const edgePoints: [number, number, number][] = [] // [x, y, edgeStrength]
-    const fillPoints: [number, number][] = []
+    const edgePoints: [number, number, number, number, number, number][] = [] // [x, y, edgeStrength, r, g, b]
+    const fillPoints: [number, number, number, number, number][] = [] // [x, y, r, g, b]
 
     for (let y = step; y < height - step; y += step) {
       for (let x = step; x < width - step; x += step) {
@@ -237,6 +244,9 @@ export class CanvasSampler {
         const alpha = data[idx * 4 + 3]
         if (alpha < ALPHA_THRESHOLD) continue
 
+        const r = data[idx * 4] / 255
+        const g = data[idx * 4 + 1] / 255
+        const b = data[idx * 4 + 2] / 255
         const center = luminance[idx]
 
         // 采样 4 个方向的邻域
@@ -255,10 +265,10 @@ export class CanvasSampler {
 
         if (edgeStrength > EDGE_THRESHOLD) {
           // 边缘点（五官轮廓）—— 加入高权重
-          edgePoints.push([x, y, edgeStrength])
+          edgePoints.push([x, y, edgeStrength, r, g, b])
         } else {
           // 均匀区域（脸部填充）—— 低权重
-          fillPoints.push([x, y])
+          fillPoints.push([x, y, r, g, b])
         }
       }
     }
@@ -267,45 +277,79 @@ export class CanvasSampler {
     const edgeQuota = Math.floor(maxPoints * 0.7)
     const fillQuota = maxPoints - edgeQuota
 
-    let edgeSampled: [number, number][]
+    let edgeSampled: [number, number, number, number, number][]
     if (edgePoints.length > edgeQuota) {
       // 按边缘强度加权采样
-      edgeSampled = this.weightedSample(edgePoints, edgeQuota)
+      edgeSampled = this.weightedSampleWithColor(edgePoints, edgeQuota)
     } else {
-      edgeSampled = edgePoints.map(([x, y]) => [x, y])
+      edgeSampled = edgePoints.map(([x, y, , r, g, b]) => [x, y, r, g, b])
     }
 
-    let fillSampled: [number, number][]
+    let fillSampled: [number, number, number, number, number][]
     if (fillPoints.length > fillQuota) {
-      fillSampled = this.fisherYatesSample(fillPoints, fillQuota)
+      fillSampled = this.fisherYatesSampleWithColor(fillPoints, fillQuota)
     } else {
       fillSampled = fillPoints
     }
 
     const allPoints = [...edgeSampled, ...fillSampled]
-    if (allPoints.length === 0) return new Float32Array(0)
+    if (allPoints.length === 0) return { positions: new Float32Array(0), colors: null }
 
-    return this.to3DPositions(allPoints, width, height)
+    // 构建位置和颜色数组
+    const positions = new Float32Array(allPoints.length * 3)
+    const colors = new Float32Array(allPoints.length * 3)
+
+    for (let i = 0; i < allPoints.length; i++) {
+      const [x, y, r, g, b] = allPoints[i]
+      const i3 = i * 3
+
+      // 转换为 3D 坐标
+      const normalizedX = (x / width) * 2 - 1
+      const normalizedY = -((y / height) * 2 - 1)
+      const aspectRatio = width / height
+
+      positions[i3] = normalizedX * SHOW_RADIUS * aspectRatio
+      positions[i3 + 1] = normalizedY * SHOW_RADIUS
+      positions[i3 + 2] = (Math.random() - 0.5) * Z_DEPTH_RANGE
+
+      // 存储颜色
+      colors[i3] = r
+      colors[i3 + 1] = g
+      colors[i3 + 2] = b
+    }
+
+    return { positions, colors }
   }
 
   /**
-   * 按权重采样（边缘强度越高越优先）
+   * 按权重采样（边缘强度越高越优先）- 带颜色
    */
-  private weightedSample(
-    points: [number, number, number][],
+  private weightedSampleWithColor(
+    points: [number, number, number, number, number, number][],
     count: number,
-  ): [number, number][] {
-    // 计算总权重
-    let totalWeight = 0
-    for (const [, , w] of points) totalWeight += w
-
-    if (totalWeight === 0) {
-      return points.slice(0, count).map(([x, y]) => [x, y])
-    }
-
+  ): [number, number, number, number, number][] {
     // 按权重排序，取前 N 个
     const sorted = [...points].sort((a, b) => b[2] - a[2])
-    return sorted.slice(0, count).map(([x, y]) => [x, y])
+    return sorted.slice(0, count).map(([x, y, , r, g, b]) => [x, y, r, g, b])
+  }
+
+  /**
+   * Fisher-Yates 采样 - 带颜色
+   */
+  private fisherYatesSampleWithColor(
+    points: [number, number, number, number, number][],
+    count: number,
+  ): [number, number, number, number, number][] {
+    const n = points.length
+    if (count >= n) return [...points]
+
+    const indices = Array.from({ length: n }, (_, i) => i)
+    for (let i = 0; i < count; i++) {
+      const j = i + Math.floor(Math.random() * (n - i))
+      ;[indices[i], indices[j]] = [indices[j], indices[i]]
+    }
+
+    return indices.slice(0, count).map(i => points[i])
   }
 
   /**
@@ -338,7 +382,7 @@ export class CanvasSampler {
   /**
    * 采样图片
    */
-  async sampleImage(source: string, options: SampleOptions = {}): Promise<Float32Array> {
+  async sampleImage(source: string, options: SampleOptions = {}): Promise<SampleResult> {
     const { maxPoints = 12000 } = options
     const maxDisplay = this.getMaxDisplaySize()
     const maxWidth = options.maxWidth || maxDisplay.maxWidth
@@ -370,7 +414,8 @@ export class CanvasSampler {
         const y = (canvasHeight - scaledHeight) / 2
 
         ctx.drawImage(img, x, y, scaledWidth, scaledHeight)
-        resolve(this.samplePixelsFromCanvas(canvas, ctx, maxPoints))
+        const positions = this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
+        resolve({ positions, colors: null })
       }
 
       img.onerror = () => {
@@ -385,7 +430,7 @@ export class CanvasSampler {
   /**
    * 采样预定义图形
    */
-  sampleShape(shape: string, options: SampleOptions = {}): Float32Array {
+  sampleShape(shape: string, options: SampleOptions = {}): SampleResult {
     const { size = 200, maxPoints = 6000 } = options
 
     const canvas = document.createElement('canvas')
@@ -416,10 +461,11 @@ export class CanvasSampler {
         break
       default:
         console.warn(`Unknown shape: ${shape}`)
-        return new Float32Array(0)
+        return { positions: new Float32Array(0), colors: null }
     }
 
-    return this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
+    const positions = this.samplePixelsFromCanvas(canvas, ctx, maxPoints)
+    return { positions, colors: null }
   }
 
   /**

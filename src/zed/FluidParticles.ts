@@ -41,6 +41,7 @@ export class FluidParticles {
   // 外部数据（通过 StateContext 暴露给状态行为）
   private frequencyData: Uint8Array | null = null
   private showPositions: Float32Array | null = null
+  private showColors: Float32Array | null = null
   private audioIntensity: number = 0
   private userRotationY: number = 0
 
@@ -105,7 +106,12 @@ export class FluidParticles {
       uParticleSides: { value: this.currentParams.particleSides },
       uPrimaryColor: { value: new THREE.Vector3(...Object.values(hexToRgb(this.currentParams.primaryColor))) },
       uSecondaryColor: { value: new THREE.Vector3(...Object.values(hexToRgb(this.currentParams.secondaryColor))) },
+      uParticleColorMix: { value: 0 }, // 0 = gradient, 1 = particle color
     }
+
+    // 粒子颜色属性（用于展示模式下显示采样颜色）
+    const particleColors = new Float32Array(count * 3)
+    geometry.setAttribute('aParticleColor', new THREE.BufferAttribute(particleColors, 3))
 
     const material = new THREE.ShaderMaterial({
       vertexShader,
@@ -289,6 +295,7 @@ export class FluidParticles {
       frequencyData: this.frequencyData,
       audioIntensity: this.audioIntensity,
       showPositions: this.showPositions,
+      showColors: this.showColors,
       time,
     }
   }
@@ -350,9 +357,30 @@ export class FluidParticles {
     this.frequencyData = data
   }
 
-  setShowContent(positions: Float32Array): void {
-    logger.log(`[FluidParticles] setShowContent: ${positions.length / 3} points`)
+  setShowContent(positions: Float32Array, colors?: Float32Array): void {
+    logger.log(`[FluidParticles] setShowContent: ${positions.length / 3} points${colors ? ', with colors' : ''}`)
     this.showPositions = positions
+    this.showColors = colors ?? null
+
+    // 更新粒子颜色 buffer 和 uniform
+    if (this.particles) {
+      const colorAttr = this.particles.geometry.attributes.aParticleColor
+      if (colorAttr) {
+        const colorArray = colorAttr.array as Float32Array
+        if (colors && colors.length >= this.currentParams.particleCount * 3) {
+          // 复制颜色到 buffer
+          colorArray.set(colors.subarray(0, this.currentParams.particleCount * 3))
+          // 启用粒子颜色混合
+          this.uniforms.uParticleColorMix.value = 1.0
+        } else {
+          // 没有颜色数据，清零
+          colorArray.fill(0)
+          this.uniforms.uParticleColorMix.value = 0.0
+        }
+        colorAttr.needsUpdate = true
+      }
+    }
+
     // 如果已在 show 状态但 positions 到达晚于 setState，重新触发 onEnter
     if (this.currentState?.id === 'show' && this.particles) {
       const ctx = this.buildContext(0)
@@ -363,6 +391,11 @@ export class FluidParticles {
   cancelShow(): void {
     logger.log('[FluidParticles] cancelShow')
     this.showPositions = null
+    this.showColors = null
+    // 恢复渐变颜色
+    if (this.uniforms.uParticleColorMix) {
+      this.uniforms.uParticleColorMix.value = 0.0
+    }
   }
 
   exitShowMode(): void {
@@ -373,6 +406,11 @@ export class FluidParticles {
       this.currentState.onExit(ctx)
     }
     this.showPositions = null
+    this.showColors = null
+    // 恢复渐变颜色
+    if (this.uniforms.uParticleColorMix) {
+      this.uniforms.uParticleColorMix.value = 0.0
+    }
   }
 
   isInShowMode(): boolean {

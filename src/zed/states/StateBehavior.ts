@@ -19,6 +19,7 @@ export interface StateContext {
   readonly frequencyData: Uint8Array | null
   readonly audioIntensity: number
   readonly showPositions: Float32Array | null
+  readonly showColors: Float32Array | null    // 展示模式下的粒子颜色 (RGB)
 
   // 时间
   readonly time: number

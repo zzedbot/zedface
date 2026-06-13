@@ -29,14 +29,14 @@ export class ShowManager {
     if (!this.particles) return
 
     logger.log(`[ShowManager] Showing text: ${text}`)
-    const positions = canvasSampler.sampleText(text, {
+    const result = canvasSampler.sampleText(text, {
       fontSize: options.fontSize || 100,
       fontFamily: options.fontFamily || 'Arial, sans-serif',
       color: options.color || '#ffffff',
       maxPoints: 6000,
     })
 
-    this.particles.setShowContent(positions)
+    this.particles.setShowContent(result.positions, result.colors ?? undefined)
   }
 
   /**
@@ -46,12 +46,12 @@ export class ShowManager {
     if (!this.particles) return
 
     logger.log(`[ShowManager] Showing emoji: ${emoji}`)
-    const positions = await canvasSampler.sampleEmoji(emoji, {
+    const result = await canvasSampler.sampleEmoji(emoji, {
       fontSize: options.fontSize || 200,
       maxPoints: 6000,
     })
 
-    this.particles.setShowContent(positions)
+    this.particles.setShowContent(result.positions, result.colors ?? undefined)
   }
 
   /**
@@ -63,13 +63,13 @@ export class ShowManager {
     logger.log(`[ShowManager] Showing image: ${source.substring(0, 50)}...`)
 
     try {
-      const positions = await canvasSampler.sampleImage(source, {
+      const result = await canvasSampler.sampleImage(source, {
         width: options.width || 300,
         height: options.height || 300,
         maxPoints: 6000,
       })
 
-      this.particles.setShowContent(positions)
+      this.particles.setShowContent(result.positions, result.colors ?? undefined)
     } catch (error) {
       logger.log(`[ShowManager] Failed to show image: ${error}`)
     }
@@ -82,12 +82,12 @@ export class ShowManager {
     if (!this.particles) return
 
     logger.log(`[ShowManager] Showing shape: ${shape}`)
-    const positions = canvasSampler.sampleShape(shape, {
+    const result = canvasSampler.sampleShape(shape, {
       size: options.size || 200,
       maxPoints: 6000,
     })
 
-    this.particles.setShowContent(positions)
+    this.particles.setShowContent(result.positions, result.colors ?? undefined)
   }
 
   /**

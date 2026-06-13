@@ -36,7 +36,8 @@
       "Bash(git stash *)",
       "Bash(tasklist)",
       "Bash(powershell -Command \"Get-Process -Name node -ErrorAction SilentlyContinue | Select-Object Id, ProcessName\")",
-      "Bash(findstr :3001)"
+      "Bash(findstr :3001)",
+      "Bash(git merge *)"
     ]
   }
 }
