@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { ZedState, FluidParams } from '../types';
+import type { WindowContentType } from './useWindowManager';
 
 interface ControlMessage {
   action: string;
@@ -15,6 +16,15 @@ interface ControlMessage {
     state: ZedState;
     params: Partial<FluidParams>;
   };
+  // 窗口控制字段
+  windowId?: string;
+  title?: string;
+  col?: number;
+  row?: number;
+  width?: number;
+  height?: number;
+  minimized?: boolean;
+  contentType?: WindowContentType;
 }
 
 interface UseControlSocketOptions {
@@ -24,6 +34,13 @@ interface UseControlSocketOptions {
   onParamsChange?: (params: Partial<FluidParams>) => void;
   onShow?: (type: 'text' | 'emoji' | 'image' | 'shape', content: string, options?: any) => void;
   onShowEnd?: () => void;
+  // 窗口控制回调
+  onWindowOpen?: (windowId: string, title: string, options: { col?: number; row?: number; width?: number; height?: number }) => void;
+  onWindowClose?: (windowId: string) => void;
+  onWindowMinimize?: (windowId: string, minimized?: boolean) => void;
+  onWindowMove?: (windowId: string, col: number, row: number) => void;
+  onWindowResize?: (windowId: string, width: number, height: number) => void;
+  onWindowSetContent?: (windowId: string, contentType: WindowContentType, content: string) => void;
 }
 
 const MAX_RECONNECT_ATTEMPTS = 10
@@ -36,6 +53,12 @@ export function useControlSocket({
   onParamsChange,
   onShow,
   onShowEnd,
+  onWindowOpen,
+  onWindowClose,
+  onWindowMinimize,
+  onWindowMove,
+  onWindowResize,
+  onWindowSetContent,
 }: UseControlSocketOptions = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const [connected, setConnected] = useState(false);
@@ -47,11 +70,23 @@ export function useControlSocket({
   const onParamsChangeRef = useRef(onParamsChange);
   const onShowRef = useRef(onShow);
   const onShowEndRef = useRef(onShowEnd);
+  const onWindowOpenRef = useRef(onWindowOpen);
+  const onWindowCloseRef = useRef(onWindowClose);
+  const onWindowMinimizeRef = useRef(onWindowMinimize);
+  const onWindowMoveRef = useRef(onWindowMove);
+  const onWindowResizeRef = useRef(onWindowResize);
+  const onWindowSetContentRef = useRef(onWindowSetContent);
 
   useEffect(() => { onStateChangeRef.current = onStateChange; }, [onStateChange]);
   useEffect(() => { onParamsChangeRef.current = onParamsChange; }, [onParamsChange]);
   useEffect(() => { onShowRef.current = onShow; }, [onShow]);
   useEffect(() => { onShowEndRef.current = onShowEnd; }, [onShowEnd]);
+  useEffect(() => { onWindowOpenRef.current = onWindowOpen; }, [onWindowOpen]);
+  useEffect(() => { onWindowCloseRef.current = onWindowClose; }, [onWindowClose]);
+  useEffect(() => { onWindowMinimizeRef.current = onWindowMinimize; }, [onWindowMinimize]);
+  useEffect(() => { onWindowMoveRef.current = onWindowMove; }, [onWindowMove]);
+  useEffect(() => { onWindowResizeRef.current = onWindowResize; }, [onWindowResize]);
+  useEffect(() => { onWindowSetContentRef.current = onWindowSetContent; }, [onWindowSetContent]);
 
   const connect = useCallback(() => {
     try {
@@ -104,6 +139,42 @@ export function useControlSocket({
               break;
             case 'showEnd':
               onShowEndRef.current?.();
+              break;
+            // 窗口控制消息
+            case 'windowOpen':
+              if (message.windowId) {
+                onWindowOpenRef.current?.(message.windowId, message.title || 'Window', {
+                  col: message.col,
+                  row: message.row,
+                  width: message.width,
+                  height: message.height,
+                });
+              }
+              break;
+            case 'windowClose':
+              if (message.windowId) {
+                onWindowCloseRef.current?.(message.windowId);
+              }
+              break;
+            case 'windowMinimize':
+              if (message.windowId) {
+                onWindowMinimizeRef.current?.(message.windowId, message.minimized);
+              }
+              break;
+            case 'windowMove':
+              if (message.windowId && message.col !== undefined && message.row !== undefined) {
+                onWindowMoveRef.current?.(message.windowId, message.col, message.row);
+              }
+              break;
+            case 'windowResize':
+              if (message.windowId && message.width !== undefined && message.height !== undefined) {
+                onWindowResizeRef.current?.(message.windowId, message.width, message.height);
+              }
+              break;
+            case 'windowSetContent':
+              if (message.windowId && message.contentType && message.content !== undefined) {
+                onWindowSetContentRef.current?.(message.windowId, message.contentType, message.content);
+              }
               break;
           }
         } catch (error) {

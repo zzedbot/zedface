@@ -25,7 +25,24 @@ const ALLOWED_ACTIONS = [
   'applyPreset',
   'show',
   'showEnd',
+  // 窗口控制
+  'windowOpen',
+  'windowClose',
+  'windowMinimize',
+  'windowMove',
+  'windowResize',
+  'windowSetContent',
+  'windowList',
 ];
+
+// 允许的内容类型
+const ALLOWED_CONTENT_TYPES = ['markdown', 'html', 'component', 'text'];
+
+// 允许的预定义组件
+const ALLOWED_COMPONENTS = ['dashboard', 'chart', 'code', 'status'];
+
+// 窗口 ID 格式
+const WINDOW_ID_REGEX = /^[a-z0-9_-]{1,32}$/;
 
 // 允许的状态
 const ALLOWED_STATES = [
@@ -71,7 +88,8 @@ let currentState = {
     noiseAmplitude: 0.3,
     rotationSpeed: 0.1,
     transitionSpeed: 0.08,
-  }
+  },
+  windows: {},  // windowId -> windowState
 };
 
 // 验证指令
@@ -118,6 +136,51 @@ function validateCommand(command) {
       }
       if (!['text', 'emoji', 'image', 'shape'].includes(command.type)) {
         return { valid: false, error: `Show type '${command.type}' not allowed` };
+      }
+      if (typeof command.content === 'string' && command.content.length > MAX_CONTENT_LENGTH) {
+        return { valid: false, error: `Content too long (max ${MAX_CONTENT_LENGTH} chars)` };
+      }
+      break;
+    // 窗口控制验证
+    case 'windowOpen':
+      if (!command.windowId || typeof command.windowId !== 'string') {
+        return { valid: false, error: 'windowOpen requires windowId' };
+      }
+      if (!WINDOW_ID_REGEX.test(command.windowId)) {
+        return { valid: false, error: 'Invalid windowId format (use a-z0-9_-)' };
+      }
+      break;
+    case 'windowClose':
+    case 'windowList':
+      if (!command.windowId && command.action === 'windowClose') {
+        return { valid: false, error: 'windowClose requires windowId' };
+      }
+      break;
+    case 'windowMinimize':
+    case 'windowMove':
+    case 'windowResize':
+      if (!command.windowId) {
+        return { valid: false, error: `${command.action} requires windowId` };
+      }
+      if (command.action === 'windowMove' && (command.col === undefined || command.row === undefined)) {
+        return { valid: false, error: 'windowMove requires col and row' };
+      }
+      if (command.action === 'windowResize' && (command.width === undefined || command.height === undefined)) {
+        return { valid: false, error: 'windowResize requires width and height' };
+      }
+      break;
+    case 'windowSetContent':
+      if (!command.windowId) {
+        return { valid: false, error: 'windowSetContent requires windowId' };
+      }
+      if (!command.contentType || !ALLOWED_CONTENT_TYPES.includes(command.contentType)) {
+        return { valid: false, error: `contentType '${command.contentType}' not allowed` };
+      }
+      if (command.content === undefined) {
+        return { valid: false, error: 'windowSetContent requires content' };
+      }
+      if (command.contentType === 'component' && !ALLOWED_COMPONENTS.includes(command.content)) {
+        return { valid: false, error: `Component '${command.content}' not allowed` };
       }
       if (typeof command.content === 'string' && command.content.length > MAX_CONTENT_LENGTH) {
         return { valid: false, error: `Content too long (max ${MAX_CONTENT_LENGTH} chars)` };
@@ -174,6 +237,56 @@ app.post('/api/control', authenticate, (req, res) => {
       currentState.state = 'idle';
       currentState.showContent = null;
       break;
+    // 窗口控制
+    case 'windowOpen': {
+      const windowId = command.windowId;
+      currentState.windows[windowId] = {
+        id: windowId,
+        title: command.title || 'Window',
+        col: command.col ?? 1,
+        row: command.row ?? 1,
+        width: command.width ?? 4,
+        height: command.height ?? 3,
+        isOpen: true,
+        isMinimized: false,
+        content: null,
+      };
+      break;
+    }
+    case 'windowClose':
+      if (currentState.windows[command.windowId]) {
+        currentState.windows[command.windowId].isOpen = false;
+        // 删除窗口状态
+        delete currentState.windows[command.windowId];
+      }
+      break;
+    case 'windowMinimize':
+      if (currentState.windows[command.windowId]) {
+        currentState.windows[command.windowId].isMinimized = command.minimized ?? !currentState.windows[command.windowId].isMinimized;
+      }
+      break;
+    case 'windowMove':
+      if (currentState.windows[command.windowId]) {
+        currentState.windows[command.windowId].col = command.col;
+        currentState.windows[command.windowId].row = command.row;
+      }
+      break;
+    case 'windowResize':
+      if (currentState.windows[command.windowId]) {
+        currentState.windows[command.windowId].width = command.width;
+        currentState.windows[command.windowId].height = command.height;
+      }
+      break;
+    case 'windowSetContent':
+      if (currentState.windows[command.windowId]) {
+        currentState.windows[command.windowId].content = {
+          type: command.contentType,
+          body: command.content,
+        };
+      }
+      break;
+    case 'windowList':
+      return res.json({ windows: currentState.windows });
     case 'getStatus':
       return res.json(currentState);
   }
@@ -246,5 +359,6 @@ server.listen(PORT, () => {
   console.log(`   WS:   ws://localhost:${PORT}`);
   console.log(`   Auth: token required (env ZEDFACE_TOKEN)`);
   console.log(`\nAllowed actions: ${ALLOWED_ACTIONS.join(', ')}`);
-  console.log(`Allowed states: ${ALLOWED_STATES.join(', ')}\n`);
+  console.log(`Allowed states: ${ALLOWED_STATES.join(', ')}`);
+  console.log(`Content types: ${ALLOWED_CONTENT_TYPES.join(', ')}\n`);
 });

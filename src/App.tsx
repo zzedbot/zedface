@@ -16,7 +16,9 @@ import { useAudioAnalyser } from './voice/useAudioAnalyser'
 import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
 import { useControlSocket } from './hooks/useControlSocket'
+import { useWindowManager } from './hooks/useWindowManager'
 import { LogDisplay } from './components/LogDisplay'
+import { WindowManager } from './components/FloatingWindow'
 import type { ZedState, FluidParams } from './types'
 
 function App() {
@@ -25,6 +27,7 @@ function App() {
   const frequencyData = useAudioAnalyser(isRecording ? mediaStream : null)
   const { transcribe } = useWhisper()
   const { isSpeaking, speak, audioRef } = useKokoro()
+  const windowManager = useWindowManager()
 
   // 获取状态预设的辅助函数
   const getPreset = (stateId: string) => StateRegistry.get(stateId)?.preset ?? StateRegistry.get('idle')!.preset
@@ -100,6 +103,37 @@ function App() {
     // 保持 show 状态的参数，不恢复到 idle
   }, [])
 
+  // 窗口控制回调
+  const handleWindowOpen = useCallback((windowId: string, title: string, options: { col?: number; row?: number; width?: number; height?: number }) => {
+    console.log('[App] Control: windowOpen', windowId, title, options)
+    windowManager.openWindow(windowId, { ...options, title })
+  }, [windowManager])
+
+  const handleWindowClose = useCallback((windowId: string) => {
+    console.log('[App] Control: windowClose', windowId)
+    windowManager.closeWindow(windowId)
+  }, [windowManager])
+
+  const handleWindowMinimize = useCallback((windowId: string, minimized?: boolean) => {
+    console.log('[App] Control: windowMinimize', windowId, minimized)
+    windowManager.minimizeWindow(windowId, minimized)
+  }, [windowManager])
+
+  const handleWindowMove = useCallback((windowId: string, col: number, row: number) => {
+    console.log('[App] Control: windowMove', windowId, col, row)
+    windowManager.moveWindow(windowId, col, row)
+  }, [windowManager])
+
+  const handleWindowResize = useCallback((windowId: string, width: number, height: number) => {
+    console.log('[App] Control: windowResize', windowId, width, height)
+    windowManager.resizeWindow(windowId, width, height)
+  }, [windowManager])
+
+  const handleWindowSetContent = useCallback((windowId: string, contentType: 'markdown' | 'html' | 'component' | 'text', content: string) => {
+    console.log('[App] Control: windowSetContent', windowId, contentType)
+    windowManager.setWindowContent(windowId, contentType, content)
+  }, [windowManager])
+
   // WebSocket 连接
   useControlSocket({
     url: 'ws://localhost:3001',
@@ -107,6 +141,12 @@ function App() {
     onParamsChange: handleControlParamsChange,
     onShow: handleShow,
     onShowEnd: handleShowEnd,
+    onWindowOpen: handleWindowOpen,
+    onWindowClose: handleWindowClose,
+    onWindowMinimize: handleWindowMinimize,
+    onWindowMove: handleWindowMove,
+    onWindowResize: handleWindowResize,
+    onWindowSetContent: handleWindowSetContent,
   })
 
   // Determine Zed state (with debug override)
@@ -244,6 +284,73 @@ function App() {
 
       {/* Debug Log Display */}
       <LogDisplay />
+
+      {/* Window Manager - 渲染所有 AI 控制的浮动窗口 */}
+      <WindowManager
+        windows={windowManager.windows}
+        onClose={windowManager.closeWindow}
+        onMinimize={windowManager.minimizeWindow}
+        onMove={windowManager.moveWindow}
+        onResize={windowManager.resizeWindow}
+      />
+
+      {/* 打开 Demo 窗口的按钮 */}
+      <button
+        onClick={() => {
+          windowManager.openWindow('demo', { title: 'Demo Window', col: 2, row: 2, width: 5, height: 4 })
+          windowManager.setWindowContent('demo', 'markdown', `# 浮动窗口 Demo
+
+这是一个由 **AI 控制** 的浮动窗口。
+
+## 功能
+
+- 🖱️ 拖拽标题栏移动窗口
+- 📐 拖拽右下角调整大小
+- ❌ 点击 × 关闭
+- 📏 点击 − 最小化
+
+## 网格吸附
+
+窗口会自动对齐到网格系统（默认 12×8）。
+
+\`\`\`javascript
+// 通过 API 控制窗口
+curl -X POST http://localhost:3001/api/control \\
+  -d '{"action":"windowOpen","windowId":"demo","title":"Hello"}'
+\`\`\`
+`)
+        }}
+        aria-label="打开 Demo 窗口"
+        style={{
+          position: 'fixed',
+          top: '80px',
+          right: '20px',
+          width: '40px',
+          height: '40px',
+          borderRadius: '8px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '18px',
+          color: '#4ecdc4',
+          cursor: 'pointer',
+          zIndex: 40,
+          backdropFilter: 'blur(10px)',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
+          e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.3)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        ☐
+      </button>
     </div>
   )
 }
