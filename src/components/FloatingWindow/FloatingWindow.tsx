@@ -188,7 +188,7 @@ export function FloatingWindow({
             flexShrink: 0,
           }}
         >
-          □
+          ☐
         </div>
         {/* 窗口名称 */}
         <span
@@ -243,7 +243,20 @@ export function FloatingWindow({
     >
       {/* 标题栏 */}
       <div
-        onMouseDown={(e) => !isMaximized && drag.onMouseDown(e, col, row)}
+        onMouseDown={(e) => {
+          // 点击按钮时不触发拖拽
+          const target = e.target as HTMLElement
+          if (target.closest('button')) return
+          if (!isMaximized) {
+            drag.onMouseDown(e, col, row)
+          }
+        }}
+        onDoubleClick={(e) => {
+          // 双击按钮时不触发最大化
+          const target = e.target as HTMLElement
+          if (target.closest('button')) return
+          onMaximize?.()
+        }}
         style={{
           height: titleBarHeight,
           minHeight: titleBarHeight,
@@ -314,7 +327,7 @@ export function FloatingWindow({
                 e.currentTarget.style.background = 'none'
               }}
             >
-              {isMaximized ? '❐' : '□'}
+              ☐
             </button>
           )}
 

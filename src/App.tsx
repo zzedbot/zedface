@@ -358,6 +358,53 @@ curl -X POST http://localhost:3001/api/control \\
       >
         ☐
       </button>
+
+      {/* 新增窗口按钮（调试用） */}
+      <button
+        onClick={() => {
+          const id = `window-${Date.now().toString(36)}`
+          const col = Math.floor(Math.random() * 6) + 1
+          const row = Math.floor(Math.random() * 4) + 1
+          windowManager.openWindow(id, {
+            title: `Window ${id.slice(-4)}`,
+            col,
+            row,
+            width: 4,
+            height: 3,
+          })
+          windowManager.setWindowContent(id, 'markdown', `# ${id}\n\n新建窗口，位置: (${col}, ${row})`)
+        }}
+        aria-label="新增窗口"
+        style={{
+          position: 'fixed',
+          top: '130px',
+          right: '20px',
+          width: '40px',
+          height: '40px',
+          borderRadius: '8px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '20px',
+          color: '#ff6b6b',
+          cursor: 'pointer',
+          zIndex: 40,
+          backdropFilter: 'blur(10px)',
+          transition: 'all 0.2s ease',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 107, 107, 0.1)'
+          e.currentTarget.style.borderColor = 'rgba(255, 107, 107, 0.3)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        +
+      </button>
     </div>
   )
 }
