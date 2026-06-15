@@ -76,6 +76,12 @@ export function useDrag(options: UseDragOptions) {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragRef.current.isDragging) return
 
+      // 首次进入拖拽状态时设置 cursor
+      if (document.body.style.cursor !== 'grabbing') {
+        document.body.style.userSelect = 'none'
+        document.body.style.cursor = 'grabbing'
+      }
+
       const deltaX = e.clientX - dragRef.current.startMouseX
       const deltaY = e.clientY - dragRef.current.startMouseY
 
@@ -124,10 +130,6 @@ export function useDrag(options: UseDragOptions) {
         row: finalRow,
       })
     }
-
-    // 拖拽期间禁用文本选择
-    document.body.style.userSelect = 'none'
-    document.body.style.cursor = 'grabbing'
 
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)

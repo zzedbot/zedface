@@ -5,3 +5,4 @@ export type { FloatingWindowProps, GridPosition, GridSize, CellSize } from './ty
 export { WindowManager } from './WindowManager'
 export { WindowRenderer } from './WindowRenderer'
 export { WindowContentRenderer } from './WindowContent'
+export { GridOverlay } from './GridOverlay'

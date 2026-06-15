@@ -29,6 +29,7 @@ const ALLOWED_ACTIONS = [
   'windowOpen',
   'windowClose',
   'windowMinimize',
+  'windowMaximize',
   'windowMove',
   'windowResize',
   'windowSetContent',
@@ -157,6 +158,7 @@ function validateCommand(command) {
       }
       break;
     case 'windowMinimize':
+    case 'windowMaximize':
     case 'windowMove':
     case 'windowResize':
       if (!command.windowId) {
@@ -249,6 +251,11 @@ app.post('/api/control', authenticate, (req, res) => {
         height: command.height ?? 3,
         isOpen: true,
         isMinimized: false,
+        isMaximized: false,
+        prevCol: command.col ?? 1,
+        prevRow: command.row ?? 1,
+        prevWidth: command.width ?? 4,
+        prevHeight: command.height ?? 3,
         content: null,
       };
       break;
@@ -265,6 +272,31 @@ app.post('/api/control', authenticate, (req, res) => {
         currentState.windows[command.windowId].isMinimized = command.minimized ?? !currentState.windows[command.windowId].isMinimized;
       }
       break;
+    case 'windowMaximize': {
+      const win = currentState.windows[command.windowId];
+      if (win) {
+        if (win.isMaximized) {
+          // 恢复到之前的位置和大小
+          win.col = win.prevCol;
+          win.row = win.prevRow;
+          win.width = win.prevWidth;
+          win.height = win.prevHeight;
+          win.isMaximized = false;
+        } else {
+          // 保存当前位置和大小，然后最大化
+          win.prevCol = win.col;
+          win.prevRow = win.row;
+          win.prevWidth = win.width;
+          win.prevHeight = win.height;
+          win.col = 0;
+          win.row = 0;
+          win.width = 12;  // gridCols
+          win.height = 8;  // gridRows
+          win.isMaximized = true;
+        }
+      }
+      break;
+    }
     case 'windowMove':
       if (currentState.windows[command.windowId]) {
         currentState.windows[command.windowId].col = command.col;

@@ -119,6 +119,11 @@ function App() {
     windowManager.minimizeWindow(windowId, minimized)
   }, [windowManager])
 
+  const handleWindowMaximize = useCallback((windowId: string) => {
+    console.log('[App] Control: windowMaximize', windowId)
+    windowManager.maximizeWindow(windowId)
+  }, [windowManager])
+
   const handleWindowMove = useCallback((windowId: string, col: number, row: number) => {
     console.log('[App] Control: windowMove', windowId, col, row)
     windowManager.moveWindow(windowId, col, row)
@@ -144,6 +149,7 @@ function App() {
     onWindowOpen: handleWindowOpen,
     onWindowClose: handleWindowClose,
     onWindowMinimize: handleWindowMinimize,
+    onWindowMaximize: handleWindowMaximize,
     onWindowMove: handleWindowMove,
     onWindowResize: handleWindowResize,
     onWindowSetContent: handleWindowSetContent,
@@ -290,6 +296,7 @@ function App() {
         windows={windowManager.windows}
         onClose={windowManager.closeWindow}
         onMinimize={windowManager.minimizeWindow}
+        onMaximize={windowManager.maximizeWindow}
         onMove={windowManager.moveWindow}
         onResize={windowManager.resizeWindow}
       />

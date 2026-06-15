@@ -26,6 +26,12 @@ export interface FloatingWindowProps {
   children: React.ReactNode
   /** 是否打开 */
   isOpen?: boolean
+  /** 是否最小化（受控） */
+  isMinimized?: boolean
+  /** 是否最大化（受控） */
+  isMaximized?: boolean
+  /** 最小化时的堆叠索引（用于垂直排列） */
+  minimizedIndex?: number
 
   // 网格配置
   /** 列数，默认 12 */
@@ -60,6 +66,8 @@ export interface FloatingWindowProps {
   onClose?: () => void
   /** 最小化回调 */
   onMinimize?: () => void
+  /** 最大化回调 */
+  onMaximize?: () => void
   /** 位置变化回调 */
   onPositionChange?: (col: number, row: number) => void
   /** 大小变化回调 */

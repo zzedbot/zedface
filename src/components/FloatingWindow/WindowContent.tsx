@@ -156,7 +156,106 @@ export function WindowContentRenderer({ content }: WindowContentRendererProps) {
             fontSize: '14px',
           }}
         >
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content.body}</ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              // 列表需要左内边距，因为全局 * { padding: 0 } 清掉了默认值
+              ul: ({ children, ...props }) => (
+                <ul style={{ paddingLeft: '1.5em', marginBottom: '0.8em' }} {...props}>{children}</ul>
+              ),
+              ol: ({ children, ...props }) => (
+                <ol style={{ paddingLeft: '1.5em', marginBottom: '0.8em' }} {...props}>{children}</ol>
+              ),
+              li: ({ children, ...props }) => (
+                <li style={{ marginBottom: '0.3em' }} {...props}>{children}</li>
+              ),
+              h1: ({ children, ...props }) => (
+                <h1 style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#4ecdc4', margin: '0.6em 0 0.4em' }} {...props}>{children}</h1>
+              ),
+              h2: ({ children, ...props }) => (
+                <h2 style={{ fontSize: '1.25em', fontWeight: 'bold', color: '#4ecdc4', margin: '0.6em 0 0.4em' }} {...props}>{children}</h2>
+              ),
+              h3: ({ children, ...props }) => (
+                <h3 style={{ fontSize: '1.1em', fontWeight: 'bold', color: '#4ecdc4', margin: '0.5em 0 0.3em' }} {...props}>{children}</h3>
+              ),
+              p: ({ children, ...props }) => (
+                <p style={{ marginBottom: '0.6em' }} {...props}>{children}</p>
+              ),
+              blockquote: ({ children, ...props }) => (
+                <blockquote
+                  style={{
+                    borderLeft: '3px solid #4ecdc4',
+                    paddingLeft: '12px',
+                    marginLeft: 0,
+                    color: '#aaa',
+                    marginBottom: '0.6em',
+                  }}
+                  {...props}
+                >
+                  {children}
+                </blockquote>
+              ),
+              code: ({ className, children, ...props }) => {
+                const isBlock = className?.includes('language-')
+                if (isBlock) {
+                  return (
+                    <code
+                      style={{
+                        display: 'block',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        borderRadius: '6px',
+                        padding: '12px',
+                        fontSize: '13px',
+                        overflow: 'auto',
+                        marginBottom: '0.6em',
+                      }}
+                      className={className}
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                  )
+                }
+                return (
+                  <code
+                    style={{
+                      background: 'rgba(78, 205, 196, 0.1)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '0.9em',
+                    }}
+                    {...props}
+                  >
+                    {children}
+                  </code>
+                )
+              },
+              pre: ({ children, ...props }) => (
+                <pre style={{ margin: 0 }} {...props}>{children}</pre>
+              ),
+              a: ({ children, ...props }) => (
+                <a style={{ color: '#4ecdc4', textDecoration: 'underline' }} {...props}>{children}</a>
+              ),
+              strong: ({ children, ...props }) => (
+                <strong style={{ color: '#fff' }} {...props}>{children}</strong>
+              ),
+              hr: (props) => (
+                <hr style={{ border: 'none', borderTop: '1px solid rgba(255, 255, 255, 0.1)', margin: '0.8em 0' }} {...props} />
+              ),
+              table: ({ children, ...props }) => (
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.6em' }} {...props}>{children}</table>
+              ),
+              th: ({ children, ...props }) => (
+                <th style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.2)', padding: '6px 8px', textAlign: 'left', color: '#4ecdc4' }} {...props}>{children}</th>
+              ),
+              td: ({ children, ...props }) => (
+                <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', padding: '6px 8px' }} {...props}>{children}</td>
+              ),
+            }}
+          >
+            {content.body}
+          </ReactMarkdown>
         </div>
       )
 

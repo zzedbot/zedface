@@ -38,6 +38,7 @@ interface UseControlSocketOptions {
   onWindowOpen?: (windowId: string, title: string, options: { col?: number; row?: number; width?: number; height?: number }) => void;
   onWindowClose?: (windowId: string) => void;
   onWindowMinimize?: (windowId: string, minimized?: boolean) => void;
+  onWindowMaximize?: (windowId: string) => void;
   onWindowMove?: (windowId: string, col: number, row: number) => void;
   onWindowResize?: (windowId: string, width: number, height: number) => void;
   onWindowSetContent?: (windowId: string, contentType: WindowContentType, content: string) => void;
@@ -56,6 +57,7 @@ export function useControlSocket({
   onWindowOpen,
   onWindowClose,
   onWindowMinimize,
+  onWindowMaximize,
   onWindowMove,
   onWindowResize,
   onWindowSetContent,
@@ -73,6 +75,7 @@ export function useControlSocket({
   const onWindowOpenRef = useRef(onWindowOpen);
   const onWindowCloseRef = useRef(onWindowClose);
   const onWindowMinimizeRef = useRef(onWindowMinimize);
+  const onWindowMaximizeRef = useRef(onWindowMaximize);
   const onWindowMoveRef = useRef(onWindowMove);
   const onWindowResizeRef = useRef(onWindowResize);
   const onWindowSetContentRef = useRef(onWindowSetContent);
@@ -84,6 +87,7 @@ export function useControlSocket({
   useEffect(() => { onWindowOpenRef.current = onWindowOpen; }, [onWindowOpen]);
   useEffect(() => { onWindowCloseRef.current = onWindowClose; }, [onWindowClose]);
   useEffect(() => { onWindowMinimizeRef.current = onWindowMinimize; }, [onWindowMinimize]);
+  useEffect(() => { onWindowMaximizeRef.current = onWindowMaximize; }, [onWindowMaximize]);
   useEffect(() => { onWindowMoveRef.current = onWindowMove; }, [onWindowMove]);
   useEffect(() => { onWindowResizeRef.current = onWindowResize; }, [onWindowResize]);
   useEffect(() => { onWindowSetContentRef.current = onWindowSetContent; }, [onWindowSetContent]);
@@ -159,6 +163,11 @@ export function useControlSocket({
             case 'windowMinimize':
               if (message.windowId) {
                 onWindowMinimizeRef.current?.(message.windowId, message.minimized);
+              }
+              break;
+            case 'windowMaximize':
+              if (message.windowId) {
+                onWindowMaximizeRef.current?.(message.windowId);
               }
               break;
             case 'windowMove':

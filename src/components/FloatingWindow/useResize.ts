@@ -98,6 +98,12 @@ export function useResize(options: UseResizeOptions) {
     const onMouseMove = (e: MouseEvent) => {
       if (!resizeRef.current.isResizing) return
 
+      // 首次进入缩放状态时设置 cursor
+      if (document.body.style.cursor !== 'nwse-resize') {
+        document.body.style.userSelect = 'none'
+        document.body.style.cursor = 'nwse-resize'
+      }
+
       const deltaX = e.clientX - resizeRef.current.startMouseX
       const deltaY = e.clientY - resizeRef.current.startMouseY
 
@@ -150,10 +156,6 @@ export function useResize(options: UseResizeOptions) {
         height: finalHeight,
       })
     }
-
-    // 缩放期间禁用文本选择
-    document.body.style.userSelect = 'none'
-    document.body.style.cursor = 'nwse-resize'
 
     window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onMouseUp)

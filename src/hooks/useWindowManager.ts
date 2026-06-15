@@ -21,6 +21,12 @@ export interface WindowState {
   height: number
   isOpen: boolean
   isMinimized: boolean
+  isMaximized: boolean
+  // 最大化前保存的位置和大小（用于恢复）
+  prevCol: number
+  prevRow: number
+  prevWidth: number
+  prevHeight: number
   content: WindowContent | null
 }
 
@@ -38,17 +44,26 @@ export function useWindowManager() {
 
   /** 打开/创建窗口 */
   const openWindow = useCallback((id: string, options: OpenWindowOptions = {}) => {
+    const col = options.col ?? 1
+    const row = options.row ?? 1
+    const width = options.width ?? 4
+    const height = options.height ?? 3
     setWindows((prev) => {
       const next = new Map(prev)
       next.set(id, {
         id,
         title: options.title ?? 'Window',
-        col: options.col ?? 1,
-        row: options.row ?? 1,
-        width: options.width ?? 4,
-        height: options.height ?? 3,
+        col,
+        row,
+        width,
+        height,
         isOpen: true,
         isMinimized: false,
+        isMaximized: false,
+        prevCol: col,
+        prevRow: row,
+        prevWidth: width,
+        prevHeight: height,
         content: null,
       })
       return next
@@ -111,11 +126,47 @@ export function useWindowManager() {
     })
   }, [])
 
+  /** 最大化/恢复窗口 */
+  const maximizeWindow = useCallback((id: string, gridCols: number = 12, gridRows: number = 8) => {
+    setWindows((prev) => {
+      const window = prev.get(id)
+      if (!window) return prev
+      const next = new Map(prev)
+      if (window.isMaximized) {
+        // 恢复到之前的位置和大小
+        next.set(id, {
+          ...window,
+          col: window.prevCol,
+          row: window.prevRow,
+          width: window.prevWidth,
+          height: window.prevHeight,
+          isMaximized: false,
+        })
+      } else {
+        // 保存当前位置和大小，然后最大化
+        next.set(id, {
+          ...window,
+          prevCol: window.col,
+          prevRow: window.row,
+          prevWidth: window.width,
+          prevHeight: window.height,
+          col: 0,
+          row: 0,
+          width: gridCols,
+          height: gridRows,
+          isMaximized: true,
+        })
+      }
+      return next
+    })
+  }, [])
+
   return {
     windows,
     openWindow,
     closeWindow,
     minimizeWindow,
+    maximizeWindow,
     moveWindow,
     resizeWindow,
     setWindowContent,

@@ -5,11 +5,15 @@ import type { FloatingWindowProps } from './types'
 import { getCellSize, gridToPixel } from './gridUtils'
 import { useDrag } from './useDrag'
 import { useResize } from './useResize'
+import { GridOverlay } from './GridOverlay'
 
 export function FloatingWindow({
   title,
   children,
   isOpen = true,
+  isMinimized = false,
+  isMaximized = false,
+  minimizedIndex = 0,
   gridCols = 12,
   gridRows = 8,
   initialCol = 1,
@@ -22,6 +26,7 @@ export function FloatingWindow({
   maxHeight,
   onClose,
   onMinimize,
+  onMaximize,
   onPositionChange,
   onSizeChange,
 }: FloatingWindowProps) {
@@ -29,7 +34,14 @@ export function FloatingWindow({
   const [row, setRow] = useState(initialRow)
   const [width, setWidth] = useState(initialWidth)
   const [height, setHeight] = useState(initialHeight)
-  const [isMinimized, setIsMinimized] = useState(false)
+
+  // 同步外部位置/大小变化（如最大化/恢复）
+  useEffect(() => {
+    setCol(initialCol)
+    setRow(initialRow)
+    setWidth(initialWidth)
+    setHeight(initialHeight)
+  }, [initialCol, initialRow, initialWidth, initialHeight])
 
   // 窗口 resize 时强制重新渲染（更新格位尺寸）
   const [, setViewportSize] = useState({
@@ -104,17 +116,15 @@ export function FloatingWindow({
     }
   }, [resize.isResizing, resize.width, resize.height])
 
-  // 最小化切换
+  // 最小化切换（由父组件控制状态）
   const handleMinimizeToggle = useCallback(() => {
-    const newMinimized = !isMinimized
-    setIsMinimized(newMinimized)
     onMinimize?.()
-  }, [isMinimized, onMinimize])
+  }, [onMinimize])
 
   // 计算像素位置和尺寸
   const pixelPos = useMemo(() => gridToPixel(col, row, cellSize), [col, row, cellSize])
   const pixelWidth = width * cellSize.w
-  const pixelHeight = isMinimized ? 40 : height * cellSize.h // 最小化时只显示标题栏
+  const pixelHeight = height * cellSize.h
 
   // 不打开时不渲染
   if (!isOpen) return null
@@ -122,8 +132,96 @@ export function FloatingWindow({
   // 标题栏高度
   const titleBarHeight = 40
 
+  // 是否正在拖拽或缩放
+  const isInteracting = drag.isDragging || resize.isResizing
+
+  // 最小化时渲染为左侧圆形图标 + 窗口名称
+  if (isMinimized) {
+    const pillTop = 80 + minimizedIndex * 50
+    return (
+      <div
+        onClick={handleMinimizeToggle}
+        role="button"
+        aria-label={`恢复窗口: ${title}`}
+        style={{
+          position: 'fixed',
+          left: '12px',
+          top: `${pillTop}px`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '6px 14px 6px 6px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          border: '1px solid rgba(78, 205, 196, 0.3)',
+          borderRadius: '20px',
+          cursor: 'pointer',
+          zIndex: 50,
+          boxShadow: '0 0 12px rgba(78, 205, 196, 0.15)',
+          transition: 'all 0.2s ease',
+          userSelect: 'none',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
+          e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.5)'
+          e.currentTarget.style.boxShadow = '0 0 16px rgba(78, 205, 196, 0.25)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+          e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.3)'
+          e.currentTarget.style.boxShadow = '0 0 12px rgba(78, 205, 196, 0.15)'
+        }}
+      >
+        {/* 圆形图标 */}
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(255, 107, 107, 0.2))',
+            border: '1px solid rgba(78, 205, 196, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px',
+            flexShrink: 0,
+          }}
+        >
+          □
+        </div>
+        {/* 窗口名称 */}
+        <span
+          style={{
+            fontSize: '12px',
+            color: '#e0e0ff',
+            whiteSpace: 'nowrap',
+            maxWidth: '100px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {title || 'Window'}
+        </span>
+      </div>
+    )
+  }
+
   return (
-    <div
+    <>
+      {/* 网格覆盖层：拖拽/缩放时显示 */}
+      {isInteracting && (
+        <GridOverlay
+          gridCols={gridCols}
+          gridRows={gridRows}
+          highlightCol={col}
+          highlightRow={row}
+          highlightWidth={width}
+          highlightHeight={height}
+        />
+      )}
+
+      <div
       style={{
         position: 'fixed',
         left: pixelPos.x,
@@ -140,12 +238,12 @@ export function FloatingWindow({
         borderRadius: '12px',
         boxShadow: '0 0 20px rgba(78, 205, 196, 0.2)',
         overflow: 'hidden',
-        transition: drag.isDragging || resize.isResizing ? 'none' : 'height 0.3s ease',
+        transition: drag.isDragging || resize.isResizing ? 'none' : 'all 0.2s ease',
       }}
     >
       {/* 标题栏 */}
       <div
-        onMouseDown={(e) => drag.onMouseDown(e, col, row)}
+        onMouseDown={(e) => !isMaximized && drag.onMouseDown(e, col, row)}
         style={{
           height: titleBarHeight,
           minHeight: titleBarHeight,
@@ -175,7 +273,7 @@ export function FloatingWindow({
           {/* 最小化按钮 */}
           <button
             onClick={handleMinimizeToggle}
-            aria-label={isMinimized ? '恢复窗口' : '最小化窗口'}
+            aria-label="最小化窗口"
             style={{
               fontSize: '16px',
               color: '#888',
@@ -194,6 +292,31 @@ export function FloatingWindow({
           >
             −
           </button>
+
+          {/* 最大化按钮 */}
+          {onMaximize && (
+            <button
+              onClick={onMaximize}
+              aria-label={isMaximized ? '恢复窗口大小' : '最大化窗口'}
+              style={{
+                fontSize: '14px',
+                color: '#888',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                transition: 'color 0.2s, background 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#4ecdc4'
+                e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#888'
+                e.currentTarget.style.background = 'none'
+              }}
+            >
+              {isMaximized ? '❐' : '□'}
+            </button>
+          )}
 
           {/* 关闭按钮 */}
           {onClose && (
@@ -223,20 +346,18 @@ export function FloatingWindow({
       </div>
 
       {/* 内容区域 */}
-      {!isMinimized && (
-        <div
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: '12px',
-          }}
-        >
-          {children}
-        </div>
-      )}
+      <div
+        style={{
+          flex: 1,
+          overflow: 'auto',
+          padding: '12px',
+        }}
+      >
+        {children}
+      </div>
 
       {/* 缩放手柄（右下角） */}
-      {!isMinimized && (
+      {!isMaximized && (
         <div
           onMouseDown={(e) => resize.onMouseDown(e, width, height, col, row)}
           style={{
@@ -265,5 +386,6 @@ export function FloatingWindow({
         </div>
       )}
     </div>
+    </>
   )
 }
