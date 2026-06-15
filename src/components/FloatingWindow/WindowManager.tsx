@@ -8,6 +8,7 @@ interface WindowManagerProps {
   onClose: (id: string) => void
   onMinimize: (id: string) => void
   onMaximize: (id: string) => void
+  onFocus: (id: string) => void
   onMove: (id: string, col: number, row: number) => void
   onResize: (id: string, width: number, height: number) => void
 }
@@ -17,6 +18,7 @@ export function WindowManager({
   onClose,
   onMinimize,
   onMaximize,
+  onFocus,
   onMove,
   onResize,
 }: WindowManagerProps) {
@@ -36,6 +38,7 @@ export function WindowManager({
             onClose={() => onClose(win.id)}
             onMinimize={() => onMinimize(win.id)}
             onMaximize={() => onMaximize(win.id)}
+            onFocus={() => onFocus(win.id)}
             onMove={(col, row) => onMove(win.id, col, row)}
             onResize={(width, height) => onResize(win.id, width, height)}
           />

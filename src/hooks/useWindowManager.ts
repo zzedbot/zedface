@@ -1,6 +1,6 @@
 // src/hooks/useWindowManager.ts
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 
 /** 窗口内容类型 */
 export type WindowContentType = 'markdown' | 'html' | 'component' | 'text'
@@ -22,6 +22,7 @@ export interface WindowState {
   isOpen: boolean
   isMinimized: boolean
   isMaximized: boolean
+  zIndex: number
   // 最大化前保存的位置和大小（用于恢复）
   prevCol: number
   prevRow: number
@@ -41,6 +42,7 @@ export interface OpenWindowOptions {
 
 export function useWindowManager() {
   const [windows, setWindows] = useState<Map<string, WindowState>>(new Map())
+  const nextZIndexRef = useRef(50) // 起始 z-index，与 FloatingWindow 基础层级一致
 
   /** 打开/创建窗口 */
   const openWindow = useCallback((id: string, options: OpenWindowOptions = {}) => {
@@ -48,6 +50,7 @@ export function useWindowManager() {
     const row = options.row ?? 1
     const width = options.width ?? 4
     const height = options.height ?? 3
+    const zIndex = nextZIndexRef.current++
     setWindows((prev) => {
       const next = new Map(prev)
       next.set(id, {
@@ -60,6 +63,7 @@ export function useWindowManager() {
         isOpen: true,
         isMinimized: false,
         isMaximized: false,
+        zIndex,
         prevCol: col,
         prevRow: row,
         prevWidth: width,
@@ -161,12 +165,28 @@ export function useWindowManager() {
     })
   }, [])
 
+  /** 将窗口置于最前 */
+  const focusWindow = useCallback((id: string) => {
+    setWindows((prev) => {
+      const window = prev.get(id)
+      if (!window) return prev
+      // 如果已经是最高层级，不需要更新
+      const maxZ = Math.max(...Array.from(prev.values()).map((w) => w.zIndex))
+      if (window.zIndex >= maxZ) return prev
+      const newZIndex = nextZIndexRef.current++
+      const next = new Map(prev)
+      next.set(id, { ...window, zIndex: newZIndex })
+      return next
+    })
+  }, [])
+
   return {
     windows,
     openWindow,
     closeWindow,
     minimizeWindow,
     maximizeWindow,
+    focusWindow,
     moveWindow,
     resizeWindow,
     setWindowContent,

@@ -14,6 +14,7 @@ export function FloatingWindow({
   isMinimized = false,
   isMaximized = false,
   minimizedIndex = 0,
+  zIndex = 50,
   gridCols = 12,
   gridRows = 8,
   initialCol = 1,
@@ -27,6 +28,7 @@ export function FloatingWindow({
   onClose,
   onMinimize,
   onMaximize,
+  onFocus,
   onPositionChange,
   onSizeChange,
 }: FloatingWindowProps) {
@@ -141,6 +143,7 @@ export function FloatingWindow({
     return (
       <div
         onClick={handleMinimizeToggle}
+        onMouseDown={onFocus}
         role="button"
         aria-label={`恢复窗口: ${title}`}
         style={{
@@ -157,7 +160,7 @@ export function FloatingWindow({
           border: '1px solid rgba(78, 205, 196, 0.3)',
           borderRadius: '20px',
           cursor: 'pointer',
-          zIndex: 50,
+          zIndex,
           boxShadow: '0 0 12px rgba(78, 205, 196, 0.15)',
           transition: 'all 0.2s ease',
           userSelect: 'none',
@@ -188,7 +191,9 @@ export function FloatingWindow({
             flexShrink: 0,
           }}
         >
-          ☐
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="#4ecdc4" strokeWidth="1.5" />
+          </svg>
         </div>
         {/* 窗口名称 */}
         <span
@@ -222,13 +227,14 @@ export function FloatingWindow({
       )}
 
       <div
+      onMouseDown={onFocus}
       style={{
         position: 'fixed',
         left: pixelPos.x,
         top: pixelPos.y,
         width: pixelWidth,
         height: pixelHeight,
-        zIndex: 50,
+        zIndex,
         display: 'flex',
         flexDirection: 'column',
         background: 'rgba(255, 255, 255, 0.05)',
@@ -303,7 +309,9 @@ export function FloatingWindow({
               e.currentTarget.style.background = 'none'
             }}
           >
-            −
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
           </button>
 
           {/* 最大化按钮 */}
@@ -327,7 +335,16 @@ export function FloatingWindow({
                 e.currentTarget.style.background = 'none'
               }}
             >
-              ☐
+              {isMaximized ? (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="3" y="0.5" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                  <rect x="0.5" y="3" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(0,0,0,0.3)" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              )}
             </button>
           )}
 
@@ -352,7 +369,10 @@ export function FloatingWindow({
                 e.currentTarget.style.background = 'none'
               }}
             >
-              ×
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
             </button>
           )}
         </div>

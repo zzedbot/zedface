@@ -10,6 +10,7 @@ interface WindowRendererProps {
   onClose: () => void
   onMinimize: () => void
   onMaximize: () => void
+  onFocus: () => void
   onMove: (col: number, row: number) => void
   onResize: (width: number, height: number) => void
 }
@@ -20,6 +21,7 @@ export function WindowRenderer({
   onClose,
   onMinimize,
   onMaximize,
+  onFocus,
   onMove,
   onResize,
 }: WindowRendererProps) {
@@ -32,6 +34,7 @@ export function WindowRenderer({
       isMinimized={win.isMinimized}
       isMaximized={win.isMaximized}
       minimizedIndex={minimizedIndex}
+      zIndex={win.zIndex}
       initialCol={win.col}
       initialRow={win.row}
       initialWidth={win.width}
@@ -39,6 +42,7 @@ export function WindowRenderer({
       onClose={onClose}
       onMinimize={onMinimize}
       onMaximize={onMaximize}
+      onFocus={onFocus}
       onPositionChange={onMove}
       onSizeChange={onResize}
     >

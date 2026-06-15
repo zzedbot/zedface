@@ -32,6 +32,8 @@ export interface FloatingWindowProps {
   isMaximized?: boolean
   /** 最小化时的堆叠索引（用于垂直排列） */
   minimizedIndex?: number
+  /** 窗口层级 */
+  zIndex?: number
 
   // 网格配置
   /** 列数，默认 12 */
@@ -68,6 +70,8 @@ export interface FloatingWindowProps {
   onMinimize?: () => void
   /** 最大化回调 */
   onMaximize?: () => void
+  /** 聚焦（置于最前）回调 */
+  onFocus?: () => void
   /** 位置变化回调 */
   onPositionChange?: (col: number, row: number) => void
   /** 大小变化回调 */
