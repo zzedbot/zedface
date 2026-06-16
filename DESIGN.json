@@ -1,0 +1,256 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-16T12:00:00.000Z",
+  "title": "Design System: ZedFace",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Neural Cyan",
+        "canonical": "oklch(0.75 0.15 180)",
+        "tonalRamp": [
+          "#1a3a38",
+          "#2a5a56",
+          "#3a7a74",
+          "#4ecdc4",
+          "#7fdcd6",
+          "#a0e8e4",
+          "#c0f0ee",
+          "#e0f8f6"
+        ]
+      },
+      "secondary": {
+        "role": "secondary",
+        "displayName": "Pulse Magenta",
+        "canonical": "oklch(0.65 0.25 10)",
+        "tonalRamp": [
+          "#4a1a1a",
+          "#6a2a2a",
+          "#8a3a3a",
+          "#ff6b6b",
+          "#ff8a8a",
+          "#ffa5a5",
+          "#ffc0c0",
+          "#ffdada"
+        ]
+      },
+      "bg-dark": {
+        "role": "neutral",
+        "displayName": "Deep Space Void",
+        "canonical": "oklch(0.15 0.05 270)",
+        "tonalRamp": [
+          "#050410",
+          "#0a0820",
+          "#0f0c29",
+          "#1a1640",
+          "#252055",
+          "#302b63",
+          "#3a3570",
+          "#454080"
+        ]
+      },
+      "text-primary": {
+        "role": "neutral",
+        "displayName": "Starlight Primary",
+        "canonical": "oklch(0.92 0.02 270)",
+        "tonalRamp": [
+          "#b0b0c0",
+          "#c0c0d0",
+          "#d0d0e0",
+          "#e0e0ff",
+          "#e8e8ff",
+          "#f0f0ff",
+          "#f8f8ff",
+          "#ffffff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Hero headlines and logotype only. Rare usage."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page titles and major section headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Subsection headings and card titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text. Max line length 65-75ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Metadata, timestamps, UI labels."
+      },
+      "mono": {
+        "displayName": "Mono",
+        "purpose": "Code snippets, logs, technical content."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-glass",
+        "value": "0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+        "purpose": "Standard glass panel elevation. Grounds floating elements."
+      },
+      {
+        "name": "neon-glow-primary",
+        "value": "0 0 20px rgba(78, 205, 196, 0.2)",
+        "purpose": "Cyan glow for interactive elements and accent glass."
+      },
+      {
+        "name": "neon-glow-secondary",
+        "value": "0 0 20px rgba(255, 107, 107, 0.2)",
+        "purpose": "Magenta glow for warnings and destructive actions."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Recommended easing for all transitions. Exponential ease-out."
+      },
+      {
+        "name": "ease-in-out-expo",
+        "value": "cubic-bezier(0.87, 0, 0.13, 1)",
+        "purpose": "Symmetric transitions for enter/exit animations."
+      },
+      {
+        "name": "duration-micro",
+        "value": "100ms",
+        "purpose": "Micro-interactions: hover, focus."
+      },
+      {
+        "name": "duration-standard",
+        "value": "200ms",
+        "purpose": "Standard transitions: buttons, inputs."
+      },
+      {
+        "name": "duration-panel",
+        "value": "300ms",
+        "purpose": "Panel transitions: slide, fade."
+      },
+      {
+        "name": "duration-complex",
+        "value": "400ms",
+        "purpose": "Complex animations: modal open."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "fullscreen",
+        "value": "100vw",
+        "note": "ZedFace is designed for full-screen immersion. No responsive breakpoints."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action button with cyan accent. Used for primary CTAs.",
+      "html": "<button class=\"ds-btn-primary\">ACTION</button>",
+      "css": ".ds-btn-primary { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; padding: 8px 16px; border: 1px solid rgba(78, 205, 196, 0.5); border-radius: 8px; font-family: Inter, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: rgba(78, 205, 196, 0.3); } .ds-btn-primary:focus-visible { outline: 2px solid #4ecdc4; outline-offset: 2px; }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action button with subtle hover state.",
+      "html": "<button class=\"ds-btn-ghost\">Secondary</button>",
+      "css": ".ds-btn-ghost { background: transparent; color: #888888; padding: 8px 16px; border: none; border-radius: 8px; font-family: Inter, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-ghost:hover { color: #4ecdc4; background: rgba(255, 255, 255, 0.05); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Dark input field with cyan focus border.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Enter text...\" />",
+      "css": ".ds-input { background: rgba(0, 0, 0, 0.3); color: #e0e0ff; padding: 8px 16px; border: 1px solid rgba(78, 205, 196, 0.2); border-radius: 8px; font-family: Inter, sans-serif; font-size: 14px; width: 100%; transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1); } .ds-input::placeholder { color: rgba(136, 136, 136, 0.5); } .ds-input:focus { border-color: rgba(78, 205, 196, 0.5); outline: none; }"
+    },
+    {
+      "name": "Glass Panel",
+      "kind": "card",
+      "refersTo": "glass-panel",
+      "description": "Floating glass container for content sections.",
+      "html": "<div class=\"ds-glass-panel\"><h3>Title</h3><p>Content goes here.</p></div>",
+      "css": ".ds-glass-panel { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1); } .ds-glass-panel h3 { color: #4ecdc4; font-size: 18px; font-weight: 600; margin: 0 0 12px 0; } .ds-glass-panel p { color: #e0e0ff; font-size: 14px; line-height: 1.6; margin: 0; }"
+    },
+    {
+      "name": "Floating Window",
+      "kind": "custom",
+      "description": "Draggable, resizable glass window with grid snapping.",
+      "html": "<div class=\"ds-floating-window\"><div class=\"ds-window-titlebar\"><span class=\"ds-window-title\">Window Title</span><div class=\"ds-window-controls\"><button class=\"ds-window-btn\">−</button><button class=\"ds-window-btn\">□</button><button class=\"ds-window-btn ds-window-btn-close\">×</button></div></div><div class=\"ds-window-content\">Content</div></div>",
+      "css": ".ds-floating-window { position: fixed; background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); display: flex; flex-direction: column; min-width: 300px; min-height: 200px; } .ds-window-titlebar { height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); cursor: grab; } .ds-window-title { color: #4ecdc4; font-size: 14px; font-weight: 500; } .ds-window-controls { display: flex; gap: 8px; } .ds-window-btn { background: transparent; color: #888888; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; transition: all 0.2s; } .ds-window-btn:hover { color: #4ecdc4; background: rgba(78, 205, 196, 0.1); } .ds-window-btn-close:hover { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); } .ds-window-content { flex: 1; padding: 12px; overflow: auto; color: #e0e0ff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Neural Interface",
+    "overview": "ZedFace is not a chatbot wrapper. It is a neural interface — a direct cognitive link between developer and AI. The design system reflects this: every element exists to minimize friction in the thought-to-action pipeline. The interface dissolves, leaving only the collaboration.\n\nThe system is precise — every pixel has purpose, every animation communicates state. It is immersive — full-screen, edge-to-edge, eliminating the browser frame to create a dedicated cognitive space. It is geeky — unapologetically technical, celebrating the aesthetic of development tools. It is futuristic — not science fiction fantasy, but near-future reality, the interface you'd expect in 2030.",
+    "keyCharacteristics": [
+      "Particle system as AI identity (not decoration)",
+      "Glassmorphism for depth, not ornamentation",
+      "Exponential easing for all motion (no bounce, no elastic)",
+      "Cyan-magenta duality: calm intelligence + urgent energy",
+      "Full-screen immersion with floating UI layers"
+    ],
+    "rules": [
+      {
+        "name": "The Signal Clarity Rule",
+        "body": "Primary cyan appears on ≤10% of any given screen. Its rarity is the point. When everything is highlighted, nothing is.",
+        "section": "colors"
+      },
+      {
+        "name": "The Duality Doctrine",
+        "body": "Cyan and magenta are never mixed decoratively. Cyan = thought/interface. Magenta = action/urgency. They coexist, but never blur.",
+        "section": "colors"
+      },
+      {
+        "name": "The Prose Boundary Rule",
+        "body": "Body text never exceeds 75 characters per line. Controlled via max-width: 65ch. Long lines fatigue the eye; short lines waste space. 65-75ch is the sweet spot.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Isolation Rule",
+        "body": "Technical content (code, logs, data) uses JetBrains Mono. Never mix monospace and sans-serif in the same semantic unit. The visual break signals 'this is machine-generated.'",
+        "section": "typography"
+      },
+      {
+        "name": "The Functional Glass Rule",
+        "body": "Glassmorphism is structural, not decorative. Use it for floating panels, modals, overlays — elements that exist above the particle background. Never use it for static cards, list items, or form fields. If the element doesn't float, it doesn't need glass.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Blur Budget Rule",
+        "body": "Standard blur is 10px. Subtle is 8px. Strong is 12px. Never exceed 12px — too much blur destroys legibility and kills performance. The background should be discernible, not obliterated.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use glassmorphism for floating panels and overlays — elements that exist above the particle background.",
+      "Do maintain cyan as the primary signal color, used on ≤10% of any surface. Its rarity is its power.",
+      "Do use exponential easing (ease-out-expo, ease-in-out-expo) for all transitions. No bounce, no elastic.",
+      "Do keep body text line length at 65-75 characters. Use max-width: 65ch on content containers.",
+      "Do use JetBrains Mono for all technical content (code, logs, data).",
+      "Do provide prefers-reduced-motion alternatives without eliminating feedback.",
+      "Do maintain WCAG 2.1 AA contrast ratios: 4.5:1 for text, 3:1 for large text and UI components."
+    ],
+    "donts": [
+      "Don't use glassmorphism decoratively. If the element doesn't float above the background, it doesn't need glass.",
+      "Don't use border-left or border-right greater than 1px as a colored accent (side-stripe border anti-pattern).",
+      "Don't use gradient text (background-clip: text with gradient background). This is decorative, never meaningful.",
+      "Don't create enterprise admin dashboard layouts (Salesforce, SAP style).",
+      "Don't use consumer chat application patterns (WeChat, Messenger style).",
+      "Don't overuse magenta. It signals urgency and danger. Reserve it for warnings, errors, and destructive actions.",
+      "Don't use bounce or elastic easing. Motion should feel physical and precise.",
+      "Don't create identical card grids with icon + heading + text repeated endlessly.",
+      "Don't reduce or remove animations without providing alternatives.",
+      "Don't use #000 or #fff. Tint every neutral toward the brand hue."
+    ]
+  }
+}
