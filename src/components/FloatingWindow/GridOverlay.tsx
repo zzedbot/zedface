@@ -22,27 +22,9 @@ export function GridOverlay({
   const cellHeight = 100 / gridRows
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        zIndex: 45,
-      }}
-    >
+    <div className="fixed inset-0 pointer-events-none z-[45]">
       {/* 网格线 */}
-      <svg
-        width="100%"
-        height="100%"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        }}
-      >
+      <svg className="absolute top-0 left-0 w-full h-full">
         {/* 垂直线 */}
         {Array.from({ length: gridCols + 1 }, (_, i) => (
           <line
@@ -77,16 +59,12 @@ export function GridOverlay({
         highlightWidth !== undefined &&
         highlightHeight !== undefined && (
           <div
+            className="absolute bg-primary/8 border-2 border-primary/40 rounded-lg transition-all duration-[50ms] ease-out"
             style={{
-              position: 'absolute',
               left: `${highlightCol * cellWidth}%`,
               top: `${highlightRow * cellHeight}%`,
               width: `${highlightWidth * cellWidth}%`,
               height: `${highlightHeight * cellHeight}%`,
-              background: 'rgba(78, 205, 196, 0.08)',
-              border: '2px solid rgba(78, 205, 196, 0.4)',
-              borderRadius: '8px',
-              transition: 'all 0.05s ease-out',
             }}
           />
         )}

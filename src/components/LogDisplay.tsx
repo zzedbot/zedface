@@ -14,7 +14,7 @@ export function LogDisplay() {
     const unsubscribe = logger.subscribe(() => {
       if (textareaRef.current) {
         textareaRef.current.value = logger.getLogs()
-        textareaRef.current.scrollTop = textareaRef.current.scrollHeight
+        textareaRef.current.scrollTop = textareaRef.scrollHeight
       }
     })
     // 初始填充
@@ -44,19 +44,7 @@ export function LogDisplay() {
       <button
         onClick={() => setIsVisible(true)}
         aria-label="显示调试日志"
-        style={{
-          position: 'fixed',
-          bottom: '10px',
-          right: '10px',
-          padding: '8px 16px',
-          background: 'rgba(78, 205, 196, 0.2)',
-          border: '1px solid rgba(78, 205, 196, 0.4)',
-          borderRadius: '4px',
-          color: '#4ecdc4',
-          fontSize: '12px',
-          cursor: 'pointer',
-          zIndex: 1000,
-        }}
+        className="fixed bottom-2.5 right-2.5 px-4 py-2 bg-primary/20 border border-primary/40 rounded text-primary text-xs z-[1000] transition-colors hover:bg-primary/30"
       >
         显示日志
       </button>
@@ -64,69 +52,28 @@ export function LogDisplay() {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: '10px',
-        right: '10px',
-        width: 'min(800px, calc(100vw - 20px))',
-        height: '80vh',
-        background: 'rgba(0, 0, 0, 0.9)',
-        border: '1px solid rgba(78, 205, 196, 0.4)',
-        borderRadius: '4px',
-        padding: '10px',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-        <span style={{ color: '#4ecdc4', fontSize: '14px' }}>调试日志</span>
+    <div className="fixed bottom-2.5 right-2.5 w-[min(800px,calc(100vw-20px))] h-[80vh] bg-black/90 border border-primary/40 rounded p-2.5 z-[1000] flex flex-col">
+      <div className="flex justify-between mb-2.5">
+        <span className="text-primary text-sm">调试日志</span>
         <div>
           <button
             onClick={handleCopy}
             aria-label="复制全部日志"
-            style={{
-              padding: '4px 8px',
-              background: 'rgba(78, 205, 196, 0.2)',
-              border: '1px solid rgba(78, 205, 196, 0.4)',
-              borderRadius: '4px',
-              color: copyStatus === 'ok' ? '#4ecdc4' : '#4ecdc4',
-              fontSize: '11px',
-              cursor: 'pointer',
-              marginRight: '5px',
-            }}
+            className="px-2 py-1 bg-primary/20 border border-primary/40 rounded text-primary text-[11px] mr-[5px] transition-colors hover:bg-primary/30"
           >
             {copyStatus === 'ok' ? '已复制 ✓' : copyStatus === 'fail' ? '失败' : '复制全部'}
           </button>
           <button
             onClick={() => logger.clear()}
             aria-label="清空日志"
-            style={{
-              padding: '4px 8px',
-              background: 'rgba(255, 107, 107, 0.2)',
-              border: '1px solid rgba(255, 107, 107, 0.4)',
-              borderRadius: '4px',
-              color: '#ff6b6b',
-              fontSize: '11px',
-              cursor: 'pointer',
-              marginRight: '5px',
-            }}
+            className="px-2 py-1 bg-secondary/20 border border-secondary/40 rounded text-secondary text-[11px] mr-[5px] transition-colors hover:bg-secondary/30"
           >
             清空
           </button>
           <button
             onClick={() => setIsVisible(false)}
             aria-label="隐藏日志"
-            style={{
-              padding: '4px 8px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '4px',
-              color: '#888',
-              fontSize: '11px',
-              cursor: 'pointer',
-            }}
+            className="px-2 py-1 bg-white/10 border border-white/20 rounded text-text-secondary text-[11px] transition-colors hover:bg-white/20"
           >
             隐藏
           </button>
@@ -136,18 +83,7 @@ export function LogDisplay() {
         ref={textareaRef}
         readOnly
         defaultValue={logger.getLogs()}
-        style={{
-          flex: 1,
-          background: 'rgba(0, 0, 0, 0.5)',
-          border: '1px solid rgba(78, 205, 196, 0.2)',
-          borderRadius: '4px',
-          padding: '8px',
-          color: '#4ecdc4',
-          fontSize: '11px',
-          fontFamily: 'monospace',
-          resize: 'none',
-          overflowY: 'auto',
-        }}
+        className="flex-1 bg-black/50 border border-primary/20 rounded p-2 text-primary text-[11px] font-mono resize-none overflow-y-auto"
       />
     </div>
   )
