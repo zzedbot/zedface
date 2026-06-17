@@ -48,130 +48,59 @@ export function HistoryPanel({ isOpen, messages, onClose }: HistoryPanelProps) {
 
   return (
     <>
+      {/* Overlay */}
       <div
         onClick={onClose}
         aria-hidden="true"
-        style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          zIndex: 20,
-        }}
+        className="fixed inset-0 bg-black/50 z-20"
       />
 
+      {/* Panel */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="历史对话"
-        style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          width: '400px',
-          height: '100vh',
-          background: 'linear-gradient(180deg, #1a0a2e, #302b63)',
-          borderLeft: '1px solid rgba(78, 205, 196, 0.2)',
-          boxShadow: '-5px 0 30px rgba(0, 0, 0, 0.5)',
-          zIndex: 21,
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        className="fixed top-0 right-0 w-[400px] h-screen bg-gradient-to-b from-[#1a0a2e] to-[#302b63] border-l border-primary/20 shadow-[-5px_0_30px_rgba(0,0,0,0.5)] z-[21] flex flex-col"
       >
         {/* Header */}
-        <div
-          style={{
-            padding: '20px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <h2
-            style={{
-              fontSize: '18px',
-              fontWeight: 'bold',
-              color: '#4ecdc4',
-            }}
-          >
-            历史对话
-          </h2>
+        <div className="p-5 border-b border-white/10 flex justify-between items-center">
+          <h2 className="text-lg font-bold text-primary">历史对话</h2>
           <button
             onClick={onClose}
             aria-label="关闭历史对话"
-            style={{
-              fontSize: '20px',
-              color: '#888',
-              padding: '4px 8px',
-            }}
+            className="text-xl text-text-secondary p-1 px-2 transition-colors hover:text-primary"
           >
             ×
           </button>
         </div>
 
         {/* Messages */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px',
-          }}
-        >
+        <div className="flex-1 overflow-y-auto p-5">
           {messages.length === 0 ? (
-            <div
-              style={{
-                textAlign: 'center',
-                color: '#888',
-                marginTop: '40px',
-              }}
-            >
-              暂无历史对话
-            </div>
+            <div className="text-center text-text-secondary mt-10">暂无历史对话</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="flex flex-col gap-4">
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className="glass-panel"
-                  style={{
-                    padding: '12px',
-                    background:
-                      msg.role === 'assistant'
-                        ? 'rgba(78, 205, 196, 0.05)'
-                        : 'rgba(255, 107, 107, 0.05)',
-                    borderColor:
-                      msg.role === 'assistant'
-                        ? 'rgba(78, 205, 196, 0.2)'
-                        : 'rgba(255, 107, 107, 0.2)',
-                  }}
+                  className={`glass-panel p-3 ${
+                    msg.role === 'assistant'
+                      ? 'bg-primary/5 border-primary/20'
+                      : 'bg-secondary/5 border-secondary/20'
+                  }`}
                 >
                   <div
-                    style={{
-                      fontSize: '11px',
-                      color: msg.role === 'assistant' ? '#4ecdc4' : '#ff6b6b',
-                      marginBottom: '6px',
-                      opacity: 0.8,
-                    }}
+                    className={`text-[11px] mb-1.5 opacity-80 ${
+                      msg.role === 'assistant' ? 'text-primary' : 'text-secondary'
+                    }`}
                   >
                     {msg.role === 'assistant' ? 'Zed' : '你'}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '14px',
-                      color: '#e0e0ff',
-                      lineHeight: 1.5,
-                    }}
-                  >
+                  <div className="text-sm text-text-primary leading-relaxed">
                     {msg.content}
                   </div>
-                  <div
-                    style={{
-                      fontSize: '10px',
-                      color: '#666',
-                      marginTop: '8px',
-                    }}
-                  >
+                  <div className="text-[10px] text-text-secondary/70 mt-2">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>
                 </div>

@@ -49,9 +49,7 @@ export function WindowRenderer({
       {win.content ? (
         <WindowContentRenderer content={win.content} />
       ) : (
-        <div style={{ color: '#888', textAlign: 'center', padding: '20px' }}>
-          No content
-        </div>
+        <div className="text-text-secondary text-center p-5">No content</div>
       )}
     </FloatingWindow>
   )

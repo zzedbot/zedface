@@ -46,24 +46,13 @@ export function TextInput({ isOpen, onSubmit, onClose, isLoading }: TextInputPro
   if (!isOpen) return null
 
   return (
-    <div
-      style={{
-        position: 'absolute',
-        bottom: '80px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '90%',
-        maxWidth: '600px',
-        zIndex: 15,
-      }}
-    >
+    <div className="absolute bottom-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[600px] z-15">
       <form
         onSubmit={handleSubmit}
         onKeyDown={handleKeyDown}
-        className="glass-panel"
-        style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px' }}
+        className="glass-panel flex flex-col gap-2 p-3"
       >
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div className="flex gap-3">
           <input
             ref={inputRef}
             type="text"
@@ -73,37 +62,20 @@ export function TextInput({ isOpen, onSubmit, onClose, isLoading }: TextInputPro
             disabled={isLoading}
             maxLength={2000}
             aria-label="消息输入"
-            style={{
-              flex: 1,
-              background: 'rgba(0, 0, 0, 0.3)',
-              border: `1px solid ${error ? 'rgba(255, 107, 107, 0.5)' : 'rgba(78, 205, 196, 0.2)'}`,
-              borderRadius: '8px',
-              padding: '10px 16px',
-              color: '#e0e0ff',
-              fontSize: '14px',
-              outline: 'none',
-            }}
+            className={`flex-1 bg-black/30 rounded-lg px-4 py-2.5 text-sm text-text-primary outline-none transition-colors ${
+              error ? 'border border-secondary/50' : 'border border-primary/20'
+            }`}
           />
           <button
             type="submit"
             disabled={isLoading || !text.trim()}
             aria-label="发送消息"
-            style={{
-              background: 'linear-gradient(135deg, #4ecdc4, #ff6b6b)',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '10px 20px',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: isLoading || !text.trim() ? 'not-allowed' : 'pointer',
-              opacity: isLoading || !text.trim() ? 0.5 : 1,
-            }}
+            className="px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-gradient-to-br from-primary to-secondary disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           >
             发送
           </button>
         </div>
-        {error && <div style={{ fontSize: '11px', color: '#ff6b6b', paddingLeft: '4px' }}>{error}</div>}
+        {error && <div className="text-[11px] text-secondary pl-1">{error}</div>}
       </form>
     </div>
   )

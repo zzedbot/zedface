@@ -232,7 +232,7 @@ function App() {
   }, [isRecording, isLoading, isSpeaking])
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div className="w-full h-full relative">
       {/* Three.js Avatar */}
       <ZedAvatar
         audioIntensity={isRecording || isSpeaking ? 0.5 : 0}
@@ -286,7 +286,7 @@ function App() {
       />
 
       {/* Hidden audio element for TTS */}
-      <audio ref={audioRef} style={{ display: 'none' }} />
+      <audio ref={audioRef} className="hidden" />
 
       {/* Debug Log Display */}
       <LogDisplay />
@@ -329,33 +329,7 @@ curl -X POST http://localhost:3001/api/control \\
 `)
         }}
         aria-label="打开 Demo 窗口"
-        style={{
-          position: 'fixed',
-          top: '80px',
-          right: '20px',
-          width: '40px',
-          height: '40px',
-          borderRadius: '8px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '18px',
-          color: '#4ecdc4',
-          cursor: 'pointer',
-          zIndex: 40,
-          backdropFilter: 'blur(10px)',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
-          e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.3)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-        }}
+        className="fixed top-20 right-5 w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-primary text-lg cursor-pointer z-40 backdrop-blur-[10px] transition-all duration-200 hover:bg-primary/10 hover:border-primary/30"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <rect x="2" y="2" width="14" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -379,33 +353,7 @@ curl -X POST http://localhost:3001/api/control \\
           windowManager.setWindowContent(id, 'markdown', `# ${id}\n\n新建窗口，位置: (${col}, ${row})`)
         }}
         aria-label="新增窗口"
-        style={{
-          position: 'fixed',
-          top: '130px',
-          right: '20px',
-          width: '40px',
-          height: '40px',
-          borderRadius: '8px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '20px',
-          color: '#ff6b6b',
-          cursor: 'pointer',
-          zIndex: 40,
-          backdropFilter: 'blur(10px)',
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 107, 107, 0.1)'
-          e.currentTarget.style.borderColor = 'rgba(255, 107, 107, 0.3)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-        }}
+        className="fixed top-[130px] right-5 w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-secondary text-xl cursor-pointer z-40 backdrop-blur-[10px] transition-all duration-200 hover:bg-secondary/10 hover:border-secondary/30"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
           <line x1="9" y1="3" x2="9" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

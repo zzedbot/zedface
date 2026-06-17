@@ -145,67 +145,21 @@ export function FloatingWindow({
         onClick={handleMinimizeToggle}
         onMouseDown={onFocus}
         role="button"
-        aria-label={`恢复窗口: ${title}`}
-        style={{
-          position: 'fixed',
-          left: '12px',
-          top: `${pillTop}px`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '6px 14px 6px 6px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid rgba(78, 205, 196, 0.3)',
-          borderRadius: '20px',
-          cursor: 'pointer',
-          zIndex,
-          boxShadow: '0 0 12px rgba(78, 205, 196, 0.15)',
-          transition: 'all 0.2s ease',
-          userSelect: 'none',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
-          e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.5)'
-          e.currentTarget.style.boxShadow = '0 0 16px rgba(78, 205, 196, 0.25)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-          e.currentTarget.style.borderColor = 'rgba(78, 205, 196, 0.3)'
-          e.currentTarget.style.boxShadow = '0 0 12px rgba(78, 205, 196, 0.15)'
-        }}
+        aria-label={`恢复窗口：${title}`}
+        className="fixed left-3 flex items-center gap-2 py-1.5 pl-1.5 pr-3.5 bg-white/5 backdrop-blur-[10px] border border-primary/30 rounded-[20px] cursor-pointer shadow-[0_0_12px_rgba(78,205,196,0.15)] transition-all duration-200 select-none hover:bg-primary/10 hover:border-primary/50 hover:shadow-[0_0_16px_rgba(78,205,196,0.25)]"
+        style={{ top: `${pillTop}px`, zIndex }}
       >
         {/* 圆形图标 */}
         <div
-          style={{
-            width: '28px',
-            height: '28px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(255, 107, 107, 0.2))',
-            border: '1px solid rgba(78, 205, 196, 0.4)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            flexShrink: 0,
-          }}
+          className="w-7 h-7 rounded-full border border-primary/40 flex items-center justify-center shrink-0"
+          style={{ background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(255, 107, 107, 0.2))' }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="#4ecdc4" strokeWidth="1.5" />
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-primary">
+            <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </div>
         {/* 窗口名称 */}
-        <span
-          style={{
-            fontSize: '12px',
-            color: '#e0e0ff',
-            whiteSpace: 'nowrap',
-            maxWidth: '100px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
+        <span className="text-xs text-text-primary whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis">
           {title || 'Window'}
         </span>
       </div>
@@ -227,198 +181,105 @@ export function FloatingWindow({
       )}
 
       <div
-      onMouseDown={onFocus}
-      style={{
-        position: 'fixed',
-        left: pixelPos.x,
-        top: pixelPos.y,
-        width: pixelWidth,
-        height: pixelHeight,
-        zIndex,
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '12px',
-        boxShadow: '0 0 20px rgba(78, 205, 196, 0.2)',
-        overflow: 'hidden',
-        transition: drag.isDragging || resize.isResizing ? 'none' : 'all 0.2s ease',
-      }}
-    >
-      {/* 标题栏 */}
-      <div
-        onMouseDown={(e) => {
-          // 点击按钮时不触发拖拽
-          const target = e.target as HTMLElement
-          if (target.closest('button')) return
-          if (!isMaximized) {
-            drag.onMouseDown(e, col, row)
-          }
-        }}
-        onDoubleClick={(e) => {
-          // 双击按钮时不触发最大化
-          const target = e.target as HTMLElement
-          if (target.closest('button')) return
-          onMaximize?.()
-        }}
+        onMouseDown={onFocus}
+        className="fixed flex flex-col bg-white/5 backdrop-blur-[10px] border border-white/10 rounded-xl shadow-[0_0_20px_rgba(78,205,196,0.2)] overflow-hidden"
         style={{
-          height: titleBarHeight,
-          minHeight: titleBarHeight,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 12px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          cursor: drag.isDragging ? 'grabbing' : 'grab',
-          userSelect: 'none',
+          left: pixelPos.x,
+          top: pixelPos.y,
+          width: pixelWidth,
+          height: pixelHeight,
+          zIndex,
+          transition: isInteracting ? 'none' : 'all 0.2s ease',
         }}
       >
-        <span
-          style={{
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#4ecdc4',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+        {/* 标题栏 */}
+        <div
+          onMouseDown={(e) => {
+            // 点击按钮时不触发拖拽
+            const target = e.target as HTMLElement
+            if (target.closest('button')) return
+            if (!isMaximized) {
+              drag.onMouseDown(e, col, row)
+            }
           }}
+          onDoubleClick={(e) => {
+            // 双击按钮时不触发最大化
+            const target = e.target as HTMLElement
+            if (target.closest('button')) return
+            onMaximize?.()
+          }}
+          className="h-10 min-h-10 flex items-center justify-between px-3 border-b border-white/10 select-none"
+          style={{ cursor: drag.isDragging ? 'grabbing' : 'grab' }}
         >
-          {title || 'Window'}
-        </span>
+          <span className="text-sm font-medium text-primary overflow-hidden text-ellipsis whitespace-nowrap">
+            {title || 'Window'}
+          </span>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {/* 最小化按钮 */}
-          <button
-            onClick={handleMinimizeToggle}
-            aria-label="最小化窗口"
-            style={{
-              fontSize: '16px',
-              color: '#888',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              transition: 'color 0.2s, background 0.2s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = '#4ecdc4'
-              e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = '#888'
-              e.currentTarget.style.background = 'none'
-            }}
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
-
-          {/* 最大化按钮 */}
-          {onMaximize && (
+          <div className="flex gap-2">
+            {/* 最小化按钮 */}
             <button
-              onClick={onMaximize}
-              aria-label={isMaximized ? '恢复窗口大小' : '最大化窗口'}
-              style={{
-                fontSize: '14px',
-                color: '#888',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                transition: 'color 0.2s, background 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#4ecdc4'
-                e.currentTarget.style.background = 'rgba(78, 205, 196, 0.1)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#888'
-                e.currentTarget.style.background = 'none'
-              }}
-            >
-              {isMaximized ? (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <rect x="3" y="0.5" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
-                  <rect x="0.5" y="3" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(0,0,0,0.3)" />
-                </svg>
-              ) : (
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
-              )}
-            </button>
-          )}
-
-          {/* 关闭按钮 */}
-          {onClose && (
-            <button
-              onClick={onClose}
-              aria-label="关闭窗口"
-              style={{
-                fontSize: '16px',
-                color: '#888',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                transition: 'color 0.2s, background 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = '#ff6b6b'
-                e.currentTarget.style.background = 'rgba(255, 107, 107, 0.1)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = '#888'
-                e.currentTarget.style.background = 'none'
-              }}
+              onClick={handleMinimizeToggle}
+              aria-label="最小化窗口"
+              className="fw-btn"
             >
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
-          )}
-        </div>
-      </div>
 
-      {/* 内容区域 */}
-      <div
-        style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '12px',
-        }}
-      >
-        {children}
-      </div>
+            {/* 最大化按钮 */}
+            {onMaximize && (
+              <button
+                onClick={onMaximize}
+                aria-label={isMaximized ? '恢复窗口大小' : '最大化窗口'}
+                className="fw-btn"
+              >
+                {isMaximized ? (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <rect x="3" y="0.5" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                    <rect x="0.5" y="3" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(0,0,0,0.3)" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+                  </svg>
+                )}
+              </button>
+            )}
 
-      {/* 缩放手柄（右下角） */}
-      {!isMaximized && (
-        <div
-          onMouseDown={(e) => resize.onMouseDown(e, width, height, col, row)}
-          style={{
-            position: 'absolute',
-            right: 0,
-            bottom: 0,
-            width: '16px',
-            height: '16px',
-            cursor: 'nwse-resize',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: 0.5,
-            transition: 'opacity 0.2s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '1'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '0.5'
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-            <path d="M9 1L1 9M9 5L5 9" stroke="#4ecdc4" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
+            {/* 关闭按钮 */}
+            {onClose && (
+              <button
+                onClick={onClose}
+                aria-label="关闭窗口"
+                className="fw-btn fw-btn-danger"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+
+        {/* 内容区域 */}
+        <div className="flex-1 overflow-auto p-3">
+          {children}
+        </div>
+
+        {/* 缩放手柄（右下角） */}
+        {!isMaximized && (
+          <div
+            onMouseDown={(e) => resize.onMouseDown(e, width, height, col, row)}
+            className="absolute right-0 bottom-0 w-4 h-4 cursor-nwse-resize flex items-center justify-center opacity-50 transition-opacity duration-200 hover:opacity-100"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" className="text-primary">
+              <path d="M9 1L1 9M9 5L5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        )}
+      </div>
     </>
   )
 }
