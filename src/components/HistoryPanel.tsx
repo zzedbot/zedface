@@ -61,7 +61,7 @@ export function HistoryPanel({ isOpen, messages, onClose }: HistoryPanelProps) {
         role="dialog"
         aria-modal="true"
         aria-label="历史对话"
-        className="fixed top-0 right-0 w-[400px] h-screen bg-gradient-to-b from-[#1a0a2e] to-[#302b63] border-l border-primary/20 shadow-[-5px_0_30px_rgba(0,0,0,0.5)] z-[21] flex flex-col"
+        className="fixed top-0 right-0 w-full max-w-[400px] h-screen bg-gradient-to-b from-[#1a0a2e] to-[#302b63] border-l border-primary/20 shadow-[-5px_0_30px_rgba(0,0,0,0.5)] z-[21] flex flex-col"
       >
         {/* Header */}
         <div className="p-5 border-b border-white/10 flex justify-between items-center">

@@ -115,7 +115,7 @@ export function ControlPanel({
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base text-text-secondary z-[100] backdrop-blur-[10px] transition-colors hover:text-primary hover:border-primary/30"
+        className="fixed top-4 left-4 w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-base text-text-secondary z-[100] backdrop-blur-[10px] transition-colors hover:text-primary hover:border-primary/30 focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none"
         title="流体参数设置"
         aria-label="切换控制面板"
       >
@@ -123,7 +123,7 @@ export function ControlPanel({
       </button>
 
       <div
-        className="fixed top-[60px] w-[300px] p-5 bg-[rgba(15,12,41,0.9)] backdrop-blur-[20px] border border-primary/20 rounded-xl z-[99] transition-[left] duration-300 max-h-[calc(100vh-80px)] overflow-y-auto"
+        className="fixed top-[60px] w-full max-w-[300px] p-5 bg-[rgba(15,12,41,0.9)] backdrop-blur-[20px] border border-primary/20 rounded-xl z-[99] transition-[left] duration-300 max-h-[calc(100vh-80px)] overflow-y-auto"
         style={{ left: isOpen ? '16px' : '-320px' }}
       >
         <h3 className="text-sm text-primary mb-4">流体参数调节</h3>
@@ -255,7 +255,7 @@ export function ControlPanel({
                   <button
                     onClick={() => onCancelShow?.()}
                     aria-label="取消展示"
-                    className="flex-1 py-1.5 bg-[rgba(255,165,2,0.1)] border border-[rgba(255,165,2,0.3)] rounded text-[#ffa502] text-[11px] cursor-pointer transition-colors hover:bg-[rgba(255,165,2,0.2)]"
+                    className="flex-1 py-1.5 bg-warning/10 border border-warning/30 rounded text-warning text-[11px] cursor-pointer transition-colors hover:bg-warning/20"
                   >
                     取消
                   </button>

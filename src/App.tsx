@@ -233,7 +233,16 @@ function App() {
 
   return (
     <div className="w-full h-full relative">
+      {/* Skip to content link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary focus:text-bg-dark focus:rounded focus:outline-none"
+      >
+        跳到主要内容
+      </a>
+
       {/* Three.js Avatar */}
+      <div id="main-content" className="sr-only">主要内容区域</div>
       <ZedAvatar
         audioIntensity={isRecording || isSpeaking ? 0.5 : 0}
         params={activeParams}

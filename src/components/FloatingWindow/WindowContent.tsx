@@ -133,7 +133,7 @@ export function WindowContentRenderer({ content }: WindowContentRendererProps) {
                 <p className="mb-2.5" {...props}>{children}</p>
               ),
               blockquote: ({ children, ...props }) => (
-                <blockquote className="border-l-[3px] border-primary pl-3 ml-0 text-[#aaa] mb-2.5" {...props}>
+                <blockquote className="border-l-[3px] border-primary pl-3 ml-0 text-text-secondary/70 mb-2.5" {...props}>
                   {children}
                 </blockquote>
               ),
