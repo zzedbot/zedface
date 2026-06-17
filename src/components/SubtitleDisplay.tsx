@@ -72,45 +72,19 @@ export function SubtitleDisplay({ currentMessage, isStreaming = false }: Subtitl
       role="log"
       aria-live="polite"
       aria-atomic="false"
-      style={{
-        position: 'absolute',
-        bottom: '100px',
-        left: 0,
-        right: 0,
-        textAlign: 'center',
-        padding: '0 40px',
-        zIndex: 5,
-      }}
+      className="absolute bottom-[100px] left-0 right-0 text-center px-10 z-5"
     >
-      <div
-        className="glass-panel"
-        style={{
-          display: 'inline-block',
-          padding: '12px 24px',
-          maxWidth: '600px',
-        }}
-      >
+      <div className="glass-panel inline-block py-3 px-6 max-w-[600px]">
         <div
-          style={{
-            fontSize: '10px',
-            color: currentMessage.role === 'assistant' ? '#4ecdc4' : '#ff6b6b',
-            marginBottom: '4px',
-            opacity: 0.7,
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-          }}
+          className={`text-[10px] mb-1 opacity-70 uppercase tracking-[1px] ${
+            currentMessage.role === 'assistant' ? 'text-primary' : 'text-secondary'
+          }`}
         >
           {currentMessage.role === 'assistant' ? 'Zed' : '你'}
         </div>
-        <div
-          style={{
-            fontSize: '16px',
-            color: '#e0e0ff',
-            lineHeight: 1.6,
-          }}
-        >
+        <div className="text-base text-text-primary leading-[1.6]">
           {displayText}
-          {isStreaming && <span style={{ opacity: 0.5 }}>▊</span>}
+          {isStreaming && <span className="opacity-50">▊</span>}
         </div>
       </div>
     </div>

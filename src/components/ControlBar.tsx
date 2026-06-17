@@ -7,20 +7,6 @@ interface ControlBarProps {
   onHistoryClick: () => void
 }
 
-const sideBtnStyle: React.CSSProperties = {
-  width: '40px',
-  height: '40px',
-  borderRadius: '50%',
-  background: 'rgba(255, 255, 255, 0.05)',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '18px',
-  color: '#888',
-  transition: 'all 0.2s ease',
-}
-
 export function ControlBar({
   isRecording,
   onMicClick,
@@ -31,24 +17,12 @@ export function ControlBar({
     <div
       role="toolbar"
       aria-label="控制栏"
-      style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        gap: '20px',
-        padding: '20px',
-        background: 'linear-gradient(transparent, rgba(0, 0, 0, 0.4))',
-        zIndex: 10,
-      }}
+      className="absolute bottom-0 left-0 right-0 flex justify-center items-center gap-5 p-5 bg-gradient-to-b from-transparent to-black/40 z-10"
     >
       <button
         onClick={onHistoryClick}
         aria-label="历史记录"
-        style={sideBtnStyle}
+        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg text-text-secondary transition-all duration-200 ease-out hover:text-primary hover:border-primary/30"
       >
         ☰
       </button>
@@ -56,24 +30,11 @@ export function ControlBar({
       <button
         onClick={onMicClick}
         aria-label={isRecording ? '停止录音' : '开始录音'}
-        style={{
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: isRecording
-            ? 'rgba(255, 107, 107, 0.3)'
-            : 'linear-gradient(135deg, rgba(78, 205, 196, 0.2), rgba(255, 107, 107, 0.2))',
-          border: `2px solid ${isRecording ? 'rgba(255, 107, 107, 0.6)' : 'rgba(78, 205, 196, 0.4)'}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '24px',
-          color: isRecording ? '#ff6b6b' : '#4ecdc4',
-          boxShadow: isRecording
-            ? '0 0 25px rgba(255, 107, 107, 0.3)'
-            : '0 0 20px rgba(78, 205, 196, 0.15)',
-          transition: 'all 0.2s ease',
-        }}
+        className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-200 ease-out ${
+          isRecording
+            ? 'bg-secondary/30 border-2 border-secondary/60 text-secondary shadow-[0_0_25px_rgba(255,107,107,0.3)]'
+            : 'bg-gradient-to-br from-primary/20 to-secondary/20 border-2 border-primary/40 text-primary shadow-[0_0_20px_rgba(78,205,196,0.15)]'
+        }`}
       >
         🎙
       </button>
@@ -81,7 +42,7 @@ export function ControlBar({
       <button
         onClick={onTextClick}
         aria-label="文字输入"
-        style={sideBtnStyle}
+        className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-lg text-text-secondary transition-all duration-200 ease-out hover:text-primary hover:border-primary/30"
       >
         ⌨
       </button>
