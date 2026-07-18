@@ -6,7 +6,6 @@ import type { WindowState } from '../../hooks/useWindowManager'
 
 interface WindowRendererProps {
   window: WindowState
-  minimizedIndex: number
   onClose: () => void
   onMinimize: () => void
   onMaximize: () => void
@@ -17,7 +16,6 @@ interface WindowRendererProps {
 
 export function WindowRenderer({
   window: win,
-  minimizedIndex,
   onClose,
   onMinimize,
   onMaximize,
@@ -29,11 +27,11 @@ export function WindowRenderer({
 
   return (
     <FloatingWindow
+      windowId={win.id}
       title={win.title}
       isOpen={win.isOpen}
       isMinimized={win.isMinimized}
       isMaximized={win.isMaximized}
-      minimizedIndex={minimizedIndex}
       zIndex={win.zIndex}
       initialCol={win.col}
       initialRow={win.row}

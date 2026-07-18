@@ -20,6 +20,8 @@ export interface CellSize {
 
 /** FloatingWindow 组件 Props */
 export interface FloatingWindowProps {
+  /** 用于协调最小化窗口顺序的稳定标识 */
+  windowId?: string
   /** 窗口标题 */
   title?: string
   /** 窗口内容 */

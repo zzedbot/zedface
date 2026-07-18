@@ -1,13 +1,20 @@
 // src/components/FloatingWindow/FloatingWindow.tsx
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { FloatingWindowProps } from './types'
 import { getCellSize, gridToPixel } from './gridUtils'
 import { useDrag } from './useDrag'
 import { useResize } from './useResize'
 import { GridOverlay } from './GridOverlay'
+import { useMinimizedWindows } from '../../hooks/useMinimizedWindows'
+
+const DRAG_THRESHOLD = 4
+const MINIMIZED_PILL_TOP = 80
+const MINIMIZED_PILL_GAP = 50
+const SORT_HYSTERESIS = 0.65
 
 export function FloatingWindow({
+  windowId,
   title,
   children,
   isOpen = true,
@@ -32,6 +39,152 @@ export function FloatingWindow({
   onPositionChange,
   onSizeChange,
 }: FloatingWindowProps) {
+  const {
+    minimizedIndex: registeredMinimizedIndex,
+    minimizedCount,
+    register: registerMinimized,
+    unregister: unregisterMinimized,
+    reorder: reorderMinimized,
+  } = useMinimizedWindows(windowId ?? '')
+  const [isDraggingToClose, setIsDraggingToClose] = useState(false)
+  const isDraggingToCloseRef = useRef(false)
+  const hasDraggedToCloseRef = useRef(false)
+  const suppressNextClickRef = useRef(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
+  const dragStartIndexRef = useRef(0)
+  const dragCurrentIndexRef = useRef(0)
+  const dragFrameRef = useRef<number | null>(null)
+  const pendingDragPointRef = useRef({ x: 0, y: 0 })
+  const dragCleanupRef = useRef<() => void>(() => {})
+  const pillRef = useRef<HTMLDivElement>(null)
+  const closeZoneRef = useRef<HTMLDivElement>(null)
+
+  const isInsideCloseZone = useCallback((clientX: number, clientY: number) => {
+    const rect = closeZoneRef.current?.getBoundingClientRect()
+    if (!rect) return false
+    return clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+  }, [])
+
+  const resetPillStyles = useCallback(() => {
+    if (!pillRef.current) return
+    pillRef.current.style.transform = ''
+    pillRef.current.style.opacity = '1'
+    pillRef.current.style.transition = ''
+    pillRef.current.style.willChange = ''
+  }, [])
+
+  useEffect(() => () => dragCleanupRef.current(), [])
+
+  useEffect(() => {
+    if (!windowId) return
+    if (isMinimized) {
+      registerMinimized()
+    } else {
+      unregisterMinimized()
+    }
+    return unregisterMinimized
+  }, [isMinimized, registerMinimized, unregisterMinimized, windowId])
+
+  // 最小化窗口的拖拽关闭处理
+  const handleMinimizedMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!isMinimized) return
+    e.preventDefault()
+    dragCleanupRef.current()
+    onFocus?.()
+    isDraggingToCloseRef.current = true
+    hasDraggedToCloseRef.current = false
+    suppressNextClickRef.current = false
+    dragStartRef.current = { x: e.clientX, y: e.clientY }
+    dragStartIndexRef.current = registeredMinimizedIndex
+    dragCurrentIndexRef.current = registeredMinimizedIndex
+    setIsDraggingToClose(true)
+
+    if (pillRef.current) {
+      pillRef.current.style.transition = 'none'
+      pillRef.current.style.willChange = 'transform, opacity'
+    }
+
+    const cleanup = () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      if (dragFrameRef.current !== null) {
+        cancelAnimationFrame(dragFrameRef.current)
+        dragFrameRef.current = null
+      }
+      dragCleanupRef.current = () => {}
+    }
+
+    const updateDragPosition = (clientX: number, clientY: number) => {
+      if (!isDraggingToCloseRef.current || !pillRef.current) return
+      const offsetX = clientX - dragStartRef.current.x
+      const offsetY = clientY - dragStartRef.current.y
+      if (Math.hypot(offsetX, offsetY) >= DRAG_THRESHOLD) {
+        hasDraggedToCloseRef.current = true
+      }
+
+      // 越过相邻胶囊中线时实时重排，让其他胶囊立即让出插入位置
+      let visualOffsetY = offsetY
+      if (windowId && hasDraggedToCloseRef.current && minimizedCount > 0) {
+        const rawIndex = dragStartIndexRef.current + offsetY / MINIMIZED_PILL_GAP
+        let targetIndex = dragCurrentIndexRef.current
+
+        while (targetIndex < minimizedCount - 1 && rawIndex > targetIndex + SORT_HYSTERESIS) {
+          targetIndex += 1
+        }
+        while (targetIndex > 0 && rawIndex < targetIndex - SORT_HYSTERESIS) {
+          targetIndex -= 1
+        }
+
+        if (targetIndex !== dragCurrentIndexRef.current) {
+          reorderMinimized(targetIndex)
+          dragCurrentIndexRef.current = targetIndex
+        }
+        visualOffsetY -= (targetIndex - dragStartIndexRef.current) * MINIMIZED_PILL_GAP
+      }
+
+      // 直接操作 DOM，避免 React 重新渲染
+      const isOverCloseZone = isInsideCloseZone(clientX, clientY)
+      if (closeZoneRef.current) {
+        closeZoneRef.current.dataset.active = String(isOverCloseZone)
+      }
+      pillRef.current.style.opacity = isOverCloseZone ? '0.5' : '1'
+      pillRef.current.style.transform = `translate(${offsetX}px, ${visualOffsetY}px) ${isOverCloseZone ? 'scale(0.95)' : 'scale(1)'}`
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      pendingDragPointRef.current = { x: e.clientX, y: e.clientY }
+      if (dragFrameRef.current !== null) return
+
+      dragFrameRef.current = requestAnimationFrame(() => {
+        dragFrameRef.current = null
+        const point = pendingDragPointRef.current
+        updateDragPosition(point.x, point.y)
+      })
+    }
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!isDraggingToCloseRef.current) return
+      if (dragFrameRef.current !== null) {
+        cancelAnimationFrame(dragFrameRef.current)
+        dragFrameRef.current = null
+      }
+      updateDragPosition(e.clientX, e.clientY)
+      const hasDragged = hasDraggedToCloseRef.current
+      const shouldClose = Boolean(onClose) && hasDragged && isInsideCloseZone(e.clientX, e.clientY)
+      suppressNextClickRef.current = hasDraggedToCloseRef.current
+      isDraggingToCloseRef.current = false
+      setIsDraggingToClose(false)
+      cleanup()
+      resetPillStyles()
+      if (shouldClose) {
+        onClose?.()
+      }
+    }
+
+    dragCleanupRef.current = cleanup
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }, [isInsideCloseZone, isMinimized, minimizedCount, onClose, onFocus, registeredMinimizedIndex, reorderMinimized, resetPillStyles, windowId])
   const [col, setCol] = useState(initialCol)
   const [row, setRow] = useState(initialRow)
   const [width, setWidth] = useState(initialWidth)
@@ -131,38 +284,83 @@ export function FloatingWindow({
   // 不打开时不渲染
   if (!isOpen) return null
 
-  // 标题栏高度
-  const titleBarHeight = 40
-
   // 是否正在拖拽或缩放
   const isInteracting = drag.isDragging || resize.isResizing
 
   // 最小化时渲染为左侧圆形图标 + 窗口名称
   if (isMinimized) {
-    const pillTop = 80 + minimizedIndex * 50
+    const effectiveMinimizedIndex = windowId ? registeredMinimizedIndex : minimizedIndex
+    const pillTop = MINIMIZED_PILL_TOP + effectiveMinimizedIndex * MINIMIZED_PILL_GAP
     return (
-      <div
-        onClick={handleMinimizeToggle}
-        onMouseDown={onFocus}
-        role="button"
-        aria-label={`恢复窗口：${title}`}
-        className="fixed left-3 flex items-center gap-2 py-1.5 pl-1.5 pr-3.5 bg-white/5 backdrop-blur-[10px] border border-primary/30 rounded-[20px] cursor-pointer shadow-[0_0_12px_rgba(78,205,196,0.15)] transition-all duration-200 select-none hover:bg-primary/10 hover:border-primary/50 hover:shadow-[0_0_16px_rgba(78,205,196,0.25)]"
-        style={{ top: `${pillTop}px`, zIndex }}
-      >
-        {/* 圆形图标 */}
+      <>
+        {/* 拖拽关闭区域 */}
+        {isDraggingToClose && onClose && (
+          <div
+            className="fixed bottom-4 left-4 w-72 max-w-[calc(100vw-2rem)] pointer-events-none"
+            style={{ zIndex: zIndex - 1 }}
+          >
+            <div
+              ref={closeZoneRef}
+              data-active="false"
+              className="glass-panel glow-secondary group flex min-h-20 w-full items-center gap-3 border-secondary/30 bg-bg-dark/80 px-4 py-3 transition-all duration-200 ease-out data-[active=true]:scale-[1.03] data-[active=true]:border-secondary/70 data-[active=true]:bg-secondary/15"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-secondary/30 bg-secondary/10 text-secondary transition-all duration-200 group-data-[active=true]:scale-105 group-data-[active=true]:border-secondary/60 group-data-[active=true]:bg-secondary/20">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-sm font-medium text-text-primary">拖到这里关闭</span>
+                <span className="text-xs text-text-secondary">松开即可移除窗口</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 最小化窗口 */}
         <div
-          className="w-7 h-7 rounded-full border border-primary/40 flex items-center justify-center shrink-0"
-          style={{ background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(255, 107, 107, 0.2))' }}
+          ref={pillRef}
+          className="fixed left-3 flex items-center gap-2 py-1.5 pl-1.5 pr-3.5 bg-white/5 backdrop-blur-[10px] border border-primary/30 rounded-[20px] shadow-[0_0_12px_rgba(78,205,196,0.15)] transition-[top,background-color,border-color,box-shadow] duration-150 ease-out select-none hover:bg-primary/10 hover:border-primary/50 hover:shadow-[0_0_16px_rgba(78,205,196,0.25)] cursor-grab active:cursor-grabbing"
+          style={{ top: `${pillTop}px`, zIndex }}
+          onMouseDown={handleMinimizedMouseDown}
+          role="button"
+          tabIndex={0}
+          aria-label={`恢复窗口：${title || 'Window'}；可上下拖动排序，或拖到底部关闭`}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleMinimizeToggle()
+            }
+          }}
         >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-primary">
-            <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-          </svg>
+          {/* 恢复窗口按钮 */}
+          <div
+            onClick={(e) => {
+              e.stopPropagation()
+              if (suppressNextClickRef.current) {
+                suppressNextClickRef.current = false
+                return
+              }
+              handleMinimizeToggle()
+            }}
+            className="flex items-center gap-2 flex-1"
+          >
+            {/* 圆形图标 */}
+            <div
+              className="w-7 h-7 rounded-full border border-primary/40 flex items-center justify-center shrink-0"
+              style={{ background: 'linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(255, 107, 107, 0.2))' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-primary">
+                <rect x="1.5" y="1.5" width="11" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </div>
+            {/* 窗口名称 */}
+            <span className="text-xs text-text-primary whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis">
+              {title || 'Window'}
+            </span>
+          </div>
         </div>
-        {/* 窗口名称 */}
-        <span className="text-xs text-text-primary whitespace-nowrap max-w-[100px] overflow-hidden text-ellipsis">
-          {title || 'Window'}
-        </span>
-      </div>
+      </>
     )
   }
 

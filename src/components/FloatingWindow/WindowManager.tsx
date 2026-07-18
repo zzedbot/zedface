@@ -23,18 +23,14 @@ export function WindowManager({
   onResize,
 }: WindowManagerProps) {
   const allWindows = Array.from(windows.values())
-  // 计算每个最小化窗口的索引（用于垂直堆叠）
-  let minimizedIndex = 0
 
   return (
     <>
       {allWindows.map((win) => {
-        const minIdx = win.isMinimized ? minimizedIndex++ : -1
         return (
           <WindowRenderer
             key={win.id}
             window={win}
-            minimizedIndex={minIdx}
             onClose={() => onClose(win.id)}
             onMinimize={() => onMinimize(win.id)}
             onMaximize={() => onMaximize(win.id)}
