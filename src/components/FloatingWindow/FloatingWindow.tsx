@@ -413,14 +413,14 @@ export function FloatingWindow({
             {title || 'Window'}
           </span>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             {/* 最小化按钮 */}
             <button
               onClick={handleMinimizeToggle}
               aria-label="最小化窗口"
               className="fw-btn"
             >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                 <line x1="2" y1="6" x2="10" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </button>
@@ -433,12 +433,12 @@ export function FloatingWindow({
                 className="fw-btn"
               >
                 {isMaximized ? (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                     <rect x="3" y="0.5" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" />
                     <rect x="0.5" y="3" width="8.5" height="8.5" rx="1" stroke="currentColor" strokeWidth="1.2" fill="rgba(0,0,0,0.3)" />
                   </svg>
                 ) : (
-                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                     <rect x="1" y="1" width="10" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
                   </svg>
                 )}
@@ -452,7 +452,7 @@ export function FloatingWindow({
                 aria-label="关闭窗口"
                 className="fw-btn fw-btn-danger"
               >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
                   <line x1="2" y1="2" x2="10" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                   <line x1="10" y1="2" x2="2" y2="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>

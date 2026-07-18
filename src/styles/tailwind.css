@@ -48,7 +48,7 @@
 
   /* Floating window buttons */
   .fw-btn {
-    @apply p-[2px_6px] rounded text-text-secondary transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none;
+    @apply flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-text-secondary transition-colors focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none;
   }
   .fw-btn:hover {
     @apply text-primary bg-primary/10;
