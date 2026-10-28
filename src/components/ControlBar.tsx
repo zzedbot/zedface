@@ -28,6 +28,8 @@ export function ControlBar({
       </button>
 
       <button
+        id="voice-button"
+        data-tv-initial="true"
         onClick={onMicClick}
         aria-label={isRecording ? '停止录音' : '开始录音'}
         className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl transition-all duration-200 ease-out focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:outline-none ${

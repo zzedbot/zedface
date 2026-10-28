@@ -28,7 +28,7 @@ export function WaveformDisplay({
     const height = canvas.height
 
     let analyser: AnalyserNode | null = null
-    let dataArray: Uint8Array | null = null
+    let dataArray: Uint8Array<ArrayBuffer> | null = null
 
     if (audioStream) {
       audioManager.retain()

@@ -7,8 +7,8 @@ import { audioManager } from './audioManager'
  * 从 MediaStream 提取实时频域数据
  * 使用共享 AudioManager 避免创建多个 AudioContext
  */
-export function useAudioAnalyser(mediaStream: MediaStream | null): Uint8Array | null {
-  const [frequencyData, setFrequencyData] = useState<Uint8Array | null>(null)
+export function useAudioAnalyser(mediaStream: MediaStream | null): Uint8Array<ArrayBuffer> | null {
+  const [frequencyData, setFrequencyData] = useState<Uint8Array<ArrayBuffer> | null>(null)
 
   useEffect(() => {
     if (!mediaStream) {

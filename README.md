@@ -88,6 +88,27 @@ npm run dev
 npm run build
 ```
 
+### 构建 Android TV 版本
+
+项目内置原生 Android TV 外壳，支持电视桌面入口、遥控器方向键导航，以及小米遥控器语音键。语音识别使用 Vosk 离线中文模型，不依赖 Google Play 服务。
+
+构建环境需要 JDK 17、Android SDK 34、Node.js 18+ 和 `unzip`。首次构建会从 Vosk 官方源下载约 42 MB 的中文小模型，并校验 SHA-256；后续会复用 `.cache/` 中的文件。
+
+```bash
+npm install
+npm run android:build
+```
+
+生成的测试 APK 位于：
+
+```text
+android-tv/app/build/outputs/apk/debug/app-debug.apk
+```
+
+当前 APK 只包含 `armeabi-v7a`，面向 32 位 ARM 电视盒子。Debug 构建使用 Android 调试证书，仅适合本地安装测试；正式发布前应配置独立的 release 签名。
+
+电视端粒子效果与网页端使用相同的 Three.js 状态和参数。渲染器针对 Android TV GPU 关闭了对 shader 点精灵无收益的全屏 MSAA、深度和模板缓冲，并缓存每帧重复计算，保持现有效果的同时降低 GPU/CPU 开销。
+
 ### 预览生产版本
 
 ```bash

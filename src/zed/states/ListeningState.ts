@@ -12,6 +12,74 @@ const INNER_BOUNDARY_FACTOR = 0.9
 const LERP_FACTOR = 0.35
 const INNER_ROT_SPEED = 0.3
 
+interface ListeningLayout {
+  particleCount: number
+  binCount: number
+  barCount: number
+  innerCount: number
+  outerX: Float64Array
+  outerY: Float64Array
+  outerZ: Float64Array
+  outerBin: Uint16Array
+  outerBoost: Float64Array
+  innerSinPhi: Float64Array
+  innerCosPhi: Float64Array
+  innerSinTheta: Float64Array
+  innerCosTheta: Float64Array
+}
+
+let cachedLayout: ListeningLayout | null = null
+
+function getLayout(particleCount: number, binCount: number): ListeningLayout {
+  if (cachedLayout?.particleCount === particleCount && cachedLayout.binCount === binCount) {
+    return cachedLayout
+  }
+
+  const barCount = Math.floor(particleCount * BAR_RATIO)
+  const innerCount = particleCount - barCount
+  const outerX = new Float64Array(barCount)
+  const outerY = new Float64Array(barCount)
+  const outerZ = new Float64Array(barCount)
+  const outerBin = new Uint16Array(barCount)
+  const outerBoost = new Float64Array(barCount)
+
+  for (let i = 0; i < barCount; i++) {
+    const cosPhi = 1 - 2 * (i + 0.5) / barCount
+    const phi = Math.acos(cosPhi)
+    const sinPhi = Math.sin(phi)
+    const theta = GOLDEN_ANGLE * i
+    outerX[i] = sinPhi * Math.cos(theta)
+    outerY[i] = Math.cos(phi)
+    outerZ[i] = sinPhi * Math.sin(theta)
+
+    const binIndex = Math.min(Math.floor((Math.PI - phi) / Math.PI * binCount), binCount - 1)
+    outerBin[i] = binIndex
+    const hfBoost = 1.0 + (binIndex / binCount) * 2.0
+    const lfEmphasis = 1.0 + Math.max(0, 1.0 - binIndex / 16) * 3.0
+    outerBoost[i] = hfBoost * lfEmphasis
+  }
+
+  const innerSinPhi = new Float64Array(innerCount)
+  const innerCosPhi = new Float64Array(innerCount)
+  const innerSinTheta = new Float64Array(innerCount)
+  const innerCosTheta = new Float64Array(innerCount)
+  for (let innerIdx = 0; innerIdx < innerCount; innerIdx++) {
+    const phi = Math.acos(1 - 2 * (innerIdx + 0.5) / innerCount)
+    const theta = GOLDEN_ANGLE * (innerIdx + barCount)
+    innerSinPhi[innerIdx] = Math.sin(phi)
+    innerCosPhi[innerIdx] = Math.cos(phi)
+    innerSinTheta[innerIdx] = Math.sin(theta)
+    innerCosTheta[innerIdx] = Math.cos(theta)
+  }
+
+  cachedLayout = {
+    particleCount, binCount, barCount, innerCount,
+    outerX, outerY, outerZ, outerBin, outerBoost,
+    innerSinPhi, innerCosPhi, innerSinTheta, innerCosTheta,
+  }
+  return cachedLayout
+}
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
@@ -48,8 +116,11 @@ const listening: StateBehavior = {
 
     const { positions, normals, randomness, particleCount, baseRadius, time } = ctx
     const binCount = frequencyData.length
-    const barCount = Math.floor(particleCount * BAR_RATIO)
-    const innerCount = particleCount - barCount
+    const layout = getLayout(particleCount, binCount)
+    const { barCount } = layout
+    const rotation = time * INNER_ROT_SPEED
+    const sinRotation = Math.sin(rotation)
+    const cosRotation = Math.cos(rotation)
 
     // 整体音量
     let totalAmp = 0
@@ -65,23 +136,14 @@ const listening: StateBehavior = {
 
       if (i < barCount) {
         // === 外层频谱刺（严格频域驱动，无 shader 效果）===
-        const phi = Math.acos(1 - 2 * (i + 0.5) / barCount)
-        const theta = GOLDEN_ANGLE * i
-
-        const binIndex = Math.min(
-          Math.floor((Math.PI - phi) / Math.PI * binCount),
-          binCount - 1
-        )
+        const binIndex = layout.outerBin[i]
         const amplitude = frequencyData[binIndex] / 255
-        const hfBoost = 1.0 + (binIndex / binCount) * 2.0
-        const lfEmphasis = 1.0 + Math.max(0, 1.0 - binIndex / 16) * 3.0
-        const compensated = Math.min(amplitude * hfBoost * lfEmphasis, 1.0)
+        const compensated = Math.min(amplitude * layout.outerBoost[i], 1.0)
 
         const radius = baseRadius + r1 * compensated * MAX_SPIKE_HEIGHT
-        const sinPhi = Math.sin(phi)
-        tx = radius * sinPhi * Math.cos(theta)
-        ty = radius * Math.cos(phi)
-        tz = radius * sinPhi * Math.sin(theta)
+        tx = radius * layout.outerX[i]
+        ty = radius * layout.outerY[i]
+        tz = radius * layout.outerZ[i]
 
         // 清零法线（屏蔽 shader 效果）
         normals[i3] = 0
@@ -90,15 +152,16 @@ const listening: StateBehavior = {
       } else {
         // === 内核球体（有机效果：噪声 + 呼吸 + 音频缩放）===
         const innerIdx = i - barCount
-        const phi = Math.acos(1 - 2 * (innerIdx + 0.5) / innerCount)
-        const theta = GOLDEN_ANGLE * (innerIdx + barCount) + time * INNER_ROT_SPEED
-
         const maxR = baseRadius * INNER_RADIUS_FACTOR
         const baseR = Math.cbrt(r2) * maxR
-        const sinPhi = Math.sin(phi)
-        const nx = sinPhi * Math.cos(theta)
-        const ny = Math.cos(phi)
-        const nz = sinPhi * Math.sin(theta)
+        const sinPhi = layout.innerSinPhi[innerIdx]
+        const cosTheta = layout.innerCosTheta[innerIdx] * cosRotation
+          - layout.innerSinTheta[innerIdx] * sinRotation
+        const sinTheta = layout.innerSinTheta[innerIdx] * cosRotation
+          + layout.innerCosTheta[innerIdx] * sinRotation
+        const nx = sinPhi * cosTheta
+        const ny = layout.innerCosPhi[innerIdx]
+        const nz = sinPhi * sinTheta
 
         let cx = baseR * nx
         let cy = baseR * ny

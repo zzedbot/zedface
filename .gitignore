@@ -5,3 +5,10 @@ dist/
 *.log
 .DS_Store
 .superpowers/
+.cache/
+android-tv/.gradle/
+android-tv/local.properties
+android-tv/app/build/
+android-tv/app/src/main/assets/www/
+android-tv/app/src/main/assets/model-cn/
+.artifacts/

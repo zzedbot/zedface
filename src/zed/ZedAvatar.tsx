@@ -19,7 +19,7 @@ interface ZedAvatarProps {
   smooth?: boolean // 是否使用平滑过渡（状态预设模式）
   stateId?: string // 当前状态 ID（驱动 StateBehavior 切换）
   showContent?: ShowContent | null // 展示内容
-  frequencyData?: Uint8Array | null // 实时频域数据（监听模式用）
+  frequencyData?: Uint8Array<ArrayBuffer> | null // 实时频域数据（监听模式用）
   onShowManagerReady?: (manager: ShowManager) => void // ShowManager 就绪回调
 }
 
@@ -32,7 +32,7 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, stateId,
   const showManagerRef = useRef<ShowManager | null>(null)
   const animationRef = useRef<number | undefined>(undefined)
   const audioIntensityRef = useRef(audioIntensity)
-  const frequencyDataRef = useRef<Uint8Array | null>(null)
+  const frequencyDataRef = useRef<Uint8Array<ArrayBuffer> | null>(null)
 
   // 鼠标拖动旋转
   const isDraggingRef = useRef(false)
@@ -126,8 +126,14 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, stateId,
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({
-      antialias: true,
+      // Every visible primitive is a shader-antialiased point sprite. Native MSAA
+      // only multisamples the transparent full-screen buffer and does not improve
+      // these particle edges, but is very expensive on Android TV GPUs.
+      antialias: false,
       alpha: true,
+      depth: false,
+      stencil: false,
+      powerPreference: 'high-performance',
     })
     renderer.setSize(width, height)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -137,6 +143,10 @@ export function ZedAvatar({ audioIntensity = 0, params, smooth = false, stateId,
     // Particles
     const particles = new FluidParticles(scene, params)
     particlesRef.current = particles
+    // The state effect runs before this setup effect on first mount. Apply the
+    // current state once the particle instance exists so cold start cannot remain
+    // stuck at the intro preset until a later interaction changes state.
+    if (stateId) particles.setState(stateId)
 
     // ShowManager
     const showManager = new ShowManager(particles)

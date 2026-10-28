@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "android:prepare": "node scripts/prepare-android-assets.mjs",
+    "android:build": "npm run build && npm run android:prepare && cd android-tv && ./gradlew assembleDebug",
     "server": "cd server && npm start",
     "server:dev": "cd server && npm run dev"
   },

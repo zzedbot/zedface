@@ -65,7 +65,6 @@ export class CanvasSampler {
     } = options
 
     const screen = this.getScreenSize()
-    const screenAspectRatio = screen.width / screen.height
     const maxDisplayWidth = screen.width * CanvasSampler.GOLDEN_RATIO
     const maxDisplayHeight = screen.height * CanvasSampler.GOLDEN_RATIO
 

@@ -44,6 +44,9 @@ export class FluidParticles {
   private showColors: Float32Array | null = null
   private audioIntensity: number = 0
   private userRotationY: number = 0
+  private stateContext: StateContext | null = null
+  private syncedPrimaryColor = ''
+  private syncedSecondaryColor = ''
 
   constructor(scene: THREE.Scene, params: FluidParams) {
     this.scene = scene
@@ -120,10 +123,16 @@ export class FluidParticles {
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      // The material never writes depth, so every point passed the cleared depth
+      // buffer anyway. Disabling the unused test preserves output and saves bandwidth.
+      depthTest: false,
     })
 
     this.particles = new THREE.Points(geometry, material)
     this.scene.add(this.particles)
+    this.stateContext = null
+    this.syncedPrimaryColor = this.currentParams.primaryColor
+    this.syncedSecondaryColor = this.currentParams.secondaryColor
   }
 
   // === 主更新循环 ===
@@ -275,29 +284,54 @@ export class FluidParticles {
     this.uniforms.uParticleSize.value = p.particleSize
     this.uniforms.uParticleSides.value = p.particleSides
 
-    const primaryRgb = hexToRgb(p.primaryColor)
-    const secondaryRgb = hexToRgb(p.secondaryColor)
-    this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
-    this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
+    if (p.primaryColor !== this.syncedPrimaryColor) {
+      const primaryRgb = hexToRgb(p.primaryColor)
+      this.uniforms.uPrimaryColor.value.set(primaryRgb.r, primaryRgb.g, primaryRgb.b)
+      this.syncedPrimaryColor = p.primaryColor
+    }
+    if (p.secondaryColor !== this.syncedSecondaryColor) {
+      const secondaryRgb = hexToRgb(p.secondaryColor)
+      this.uniforms.uSecondaryColor.value.set(secondaryRgb.r, secondaryRgb.g, secondaryRgb.b)
+      this.syncedSecondaryColor = p.secondaryColor
+    }
   }
 
   // === 上下文构建 ===
 
   private buildContext(time: number): StateContext {
     const geo = this.particles!.geometry
-    return {
-      positions: geo.attributes.position.array as Float32Array,
-      normals: geo.attributes.normal.array as Float32Array,
-      randomness: geo.attributes.aRandomness.array as Float32Array,
-      particleDirections: this.particleDirections ?? new Float32Array(0),
-      particleCount: this.currentParams.particleCount,
-      baseRadius: this.targetParams.radius,
-      frequencyData: this.frequencyData,
-      audioIntensity: this.audioIntensity,
-      showPositions: this.showPositions,
-      showColors: this.showColors,
-      time,
+    if (!this.stateContext) {
+      this.stateContext = {
+        positions: geo.attributes.position.array as Float32Array,
+        normals: geo.attributes.normal.array as Float32Array,
+        randomness: geo.attributes.aRandomness.array as Float32Array,
+        particleDirections: this.particleDirections!,
+        particleCount: this.currentParams.particleCount,
+        baseRadius: this.targetParams.radius,
+        frequencyData: this.frequencyData,
+        audioIntensity: this.audioIntensity,
+        showPositions: this.showPositions,
+        showColors: this.showColors,
+        time,
+      }
+      return this.stateContext
     }
+
+    // StateContext is exposed as readonly to behaviors, but reusing the internal
+    // object avoids allocating and collecting one object for every animation frame.
+    const ctx = this.stateContext as unknown as Record<string, unknown>
+    ctx.positions = geo.attributes.position.array as Float32Array
+    ctx.normals = geo.attributes.normal.array as Float32Array
+    ctx.randomness = geo.attributes.aRandomness.array as Float32Array
+    ctx.particleDirections = this.particleDirections!
+    ctx.particleCount = this.currentParams.particleCount
+    ctx.baseRadius = this.targetParams.radius
+    ctx.frequencyData = this.frequencyData
+    ctx.audioIntensity = this.audioIntensity
+    ctx.showPositions = this.showPositions
+    ctx.showColors = this.showColors
+    ctx.time = time
+    return this.stateContext
   }
 
   // === 公共 API ===

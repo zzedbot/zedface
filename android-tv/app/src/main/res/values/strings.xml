@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ZedFace</string>
+    <string name="voice_key_service_label">ZedFace 遥控器语音键</string>
+    <string name="voice_key_service_description">仅在 ZedFace 前台时接收遥控器麦克风键，不读取屏幕内容。</string>
+</resources>

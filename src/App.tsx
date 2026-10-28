@@ -15,6 +15,7 @@ import { useVoiceRecorder } from './voice/useVoiceRecorder'
 import { useAudioAnalyser } from './voice/useAudioAnalyser'
 import { useWhisper } from './voice/useWhisper'
 import { useKokoro } from './voice/useKokoro'
+import { useNativeVoiceInput } from './voice/useNativeVoiceInput'
 import { useControlSocket } from './hooks/useControlSocket'
 import { useWindowManager } from './hooks/useWindowManager'
 import { LogDisplay } from './components/LogDisplay'
@@ -28,6 +29,11 @@ function App() {
   const { transcribe } = useWhisper()
   const { isSpeaking, speak, audioRef } = useKokoro()
   const windowManager = useWindowManager()
+
+  const handleNativeVoiceText = useCallback(async (text: string) => {
+    await sendUserMessage(text)
+  }, [sendUserMessage])
+  const nativeVoice = useNativeVoiceInput(handleNativeVoiceText)
 
   // 获取状态预设的辅助函数
   const getPreset = (stateId: string) => StateRegistry.get(stateId)?.preset ?? StateRegistry.get('idle')!.preset
@@ -155,12 +161,14 @@ function App() {
     onWindowSetContent: handleWindowSetContent,
   })
 
+  const isVoiceRecording = isRecording || nativeVoice.isRecording
+
   // Determine Zed state (with debug override)
   const getAutoState = (): ZedState => {
     // 如果有调试状态，优先使用
     if (debugState) return debugState
     // 根据交互状态自动切换
-    if (isRecording) return 'listening'
+    if (isVoiceRecording) return 'listening'
     if (isLoading) return 'thinking'
     if (isSpeaking) return 'speaking'
     return 'idle'
@@ -173,6 +181,11 @@ function App() {
 
   // Handle mic button click
   const handleMicClick = async () => {
+    if (nativeVoice.isNative) {
+      nativeVoice.toggle()
+      return
+    }
+
     if (isRecording) {
       stopRecording()
       setListening(false)
@@ -226,10 +239,10 @@ function App() {
 
   // 当用户开始新的交互时，清除调试状态（让 auto-state 接管）
   useEffect(() => {
-    if (isRecording || isLoading || isSpeaking) {
+    if (isVoiceRecording || isLoading || isSpeaking) {
       setDebugState(null)
     }
-  }, [isRecording, isLoading, isSpeaking])
+  }, [isVoiceRecording, isLoading, isSpeaking])
 
   return (
     <div className="w-full h-full relative">
@@ -244,7 +257,7 @@ function App() {
       {/* Three.js Avatar */}
       <div id="main-content" className="sr-only">主要内容区域</div>
       <ZedAvatar
-        audioIntensity={isRecording || isSpeaking ? 0.5 : 0}
+        audioIntensity={isVoiceRecording || isSpeaking ? 0.5 : 0}
         params={activeParams}
         smooth={usePreset}
         stateId={zedState}
@@ -271,9 +284,15 @@ function App() {
       {/* Subtitle */}
       <SubtitleDisplay currentMessage={currentMessage} isStreaming={isLoading} />
 
+      {nativeVoice.statusText && (
+        <div className="tv-voice-status" role="status" aria-live="polite">
+          {nativeVoice.statusText}
+        </div>
+      )}
+
       {/* Control Bar */}
       <ControlBar
-        isRecording={isRecording}
+        isRecording={isVoiceRecording}
         onMicClick={handleMicClick}
         onTextClick={() => setShowTextInput(!showTextInput)}
         onHistoryClick={() => setShowHistory(true)}

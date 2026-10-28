@@ -27,10 +27,10 @@ class AudioManager {
   /**
    * 为 MediaStream 创建或复用 AnalyserNode
    */
-  getAnalyser(stream: MediaStream): { analyser: AnalyserNode; dataArray: Uint8Array } {
+  getAnalyser(stream: MediaStream): { analyser: AnalyserNode; dataArray: Uint8Array<ArrayBuffer> } {
     const cached = this.analyserCache.get(stream)
     if (cached) {
-      const dataArray = new Uint8Array(cached.analyser.frequencyBinCount)
+      const dataArray = new Uint8Array(new ArrayBuffer(cached.analyser.frequencyBinCount))
       return { analyser: cached.analyser, dataArray }
     }
 
@@ -42,7 +42,7 @@ class AudioManager {
     source.connect(analyser)
 
     this.analyserCache.set(stream, { analyser, source })
-    const dataArray = new Uint8Array(analyser.frequencyBinCount)
+    const dataArray = new Uint8Array(new ArrayBuffer(analyser.frequencyBinCount))
     return { analyser, dataArray }
   }
 

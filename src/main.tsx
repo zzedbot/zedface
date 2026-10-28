@@ -2,6 +2,7 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/tailwind.css'
 import './styles/global.css'
+import { installTvNavigation } from './tv/navigation'
 
 const rootEl = document.getElementById('root')
 if (!rootEl) {
@@ -11,3 +12,5 @@ if (!rootEl) {
 // 不使用 StrictMode — Three.js requestAnimationFrame 副作用
 // 在 double-invoke 下会导致多重渲染循环
 ReactDOM.createRoot(rootEl).render(<App />)
+
+installTvNavigation()

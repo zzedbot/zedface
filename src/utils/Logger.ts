@@ -7,7 +7,8 @@ class LogManager {
   private listeners: (() => void)[] = []
   private cachedText = ''
 
-  log(message: string) {
+  log(...parts: unknown[]) {
+    const message = parts.map(part => typeof part === 'string' ? part : String(part)).join(' ')
     const timestamp = new Date().toLocaleTimeString('zh-CN', {
       hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit',
     })

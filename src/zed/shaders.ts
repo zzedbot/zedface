@@ -61,31 +61,30 @@ export const fragmentShader = `
   varying vec3 vColor;
   varying float vAlpha;
 
-  float polygonShape(vec2 p, float sides) {
+  float polygonShape(vec2 p, float radius, float sides) {
     if (sides < 3.0) {
       // Circle
-      return 1.0 - smoothstep(0.4, 0.5, length(p));
+      return 1.0 - smoothstep(0.4, 0.5, radius);
     }
 
     float angle = atan(p.y, p.x);
     float segment = 6.28318 / sides;
-    float r = length(p);
     float theta = mod(angle + segment * 0.5, segment) - segment * 0.5;
-    float d = r * cos(theta) / cos(segment * 0.5);
+    float d = radius * cos(theta) / cos(segment * 0.5);
 
     return 1.0 - smoothstep(0.45, 0.5, d);
   }
 
   void main() {
     vec2 center = gl_PointCoord - vec2(0.5);
+    float radius = length(center);
 
     // Shape based on sides (0 = circle, 3+ = polygon)
-    float shape = polygonShape(center, uParticleSides);
+    float shape = polygonShape(center, radius, uParticleSides);
 
     // Glow effect
-    float glow = exp(-length(center) * 3.0) * uGlowIntensity;
+    float glow = exp(-radius * 3.0) * uGlowIntensity;
 
     gl_FragColor = vec4(vColor + glow, shape * vAlpha);
   }
 `
-

@@ -57,3 +57,34 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+/* Android TV / D-pad focus treatment. */
+button:focus,
+input:focus,
+[tabindex]:focus {
+  outline: 3px solid var(--color-primary) !important;
+  outline-offset: 5px;
+  box-shadow: 0 0 28px rgba(78, 205, 196, 0.7) !important;
+}
+
+button:focus {
+  transform: scale(1.12);
+}
+
+.tv-voice-status {
+  position: absolute;
+  left: 50%;
+  bottom: 178px;
+  transform: translateX(-50%);
+  z-index: 30;
+  min-width: 360px;
+  max-width: 70vw;
+  padding: 12px 22px;
+  border: 1px solid rgba(78, 205, 196, 0.45);
+  border-radius: 12px;
+  background: rgba(15, 12, 41, 0.88);
+  color: #e0e0ff;
+  font-size: 20px;
+  text-align: center;
+  backdrop-filter: blur(12px);
+}

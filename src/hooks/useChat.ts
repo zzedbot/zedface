@@ -1,6 +1,6 @@
 // src/hooks/useChat.ts
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import type { Message, ChatState } from '../types'
 import { sendMessage } from '../api/openclaw'
 
